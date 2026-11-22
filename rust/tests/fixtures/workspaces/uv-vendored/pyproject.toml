@@ -1,0 +1,8 @@
+[project]
+name = "app"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["six==1.16.0", "django"]
+
+[tool.uv.sources]
+django = { path = "vendor/django", editable = true }

@@ -1,0 +1,11 @@
+[Unit]
+Description=Retry queued Vorda results
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=1min
+RandomizedDelaySec=15
+Unit=vorda-send.service
+
+[Install]
+WantedBy=timers.target

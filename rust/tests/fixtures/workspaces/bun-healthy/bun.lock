@@ -1,0 +1,30 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "root",
+      "dependencies": {
+        "lodash": "4.17.21",
+      },
+    },
+    "packages/a": {
+      "name": "ws-a",
+      "version": "1.0.0",
+    },
+    "packages/b": {
+      "name": "ws-b",
+      "version": "1.0.0",
+      "dependencies": {
+        "ws-a": "workspace:*",
+      },
+    },
+  },
+  "packages": {
+    "lodash": ["lodash@4.17.21", "", {}, "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="],
+
+    "ws-a": ["ws-a@workspace:packages/a"],
+
+    "ws-b": ["ws-b@workspace:packages/b"],
+  }
+}

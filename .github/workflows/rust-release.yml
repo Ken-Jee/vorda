@@ -1,0 +1,102 @@
+name: Rust release candidate
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type BUILD for unsigned build-only artifacts, or SIGN to also sign them with the release key; neither publishes a release
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rust-release-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  RUSTUP_TOOLCHAIN: 1.99.1
+  CARGO_BUILD_JOBS: 2
+  MINISIGN_VERSION: "0.12"
+  MINISIGN_SHA256: 9a599b48ba6eb7b1e80f12f36b94ceca7c00b7a5173c95c3efc88d9822957e73
+jobs:
+  package:
+    if: (inputs.confirmation == 'BUILD' || inputs.confirmation == 'SIGN') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --no-self-update
+      - name: Build and verify native distribution
+        run: |
+          version=$(sed -n '/^\[package\]/,/^\[/s/^version = "\([^"]*\)"/\1/p' rust/Cargo.toml)
+          bash rust/release/build-native.sh x86_64-unknown-linux-gnu "$version" "$RUNNER_TEMP/package"
+          bash rust/release/compare-native.sh "$RUNNER_TEMP/package" "$RUNNER_TEMP/package"
+          binary="$RUNNER_TEMP/package/vorda-$version-x86_64-unknown-linux-gnu"
+          digest=$(sha256sum "$binary")
+          bash rust/release/install-native.sh "$binary" "${digest%% *}" "$RUNNER_TEMP/install"
+          "$RUNNER_TEMP/install/bin/vorda" --help
+          cargo build --locked --release --manifest-path rust/Cargo.toml --bin ci_helper
+          rust/target/release/ci_helper smoke "$RUNNER_TEMP/install/bin/vorda"
+          rust/target/release/ci_helper provenance "$RUNNER_TEMP/package"
+          (cd "$RUNNER_TEMP/package" && sha256sum --strict --check SHA256SUMS)
+      # SIGN mode only. The secrets hold the minisign secret key file text and its password.
+      # If either is missing, or rust/release/vorda-release.pub is still the placeholder or does
+      # not match the secret key, sign-native.sh fails and nothing signed is uploaded.
+      - name: Install pinned minisign
+        if: inputs.confirmation == 'SIGN'
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/minisign.tar.gz" \
+            "https://github.com/jedisct1/minisign/releases/download/$MINISIGN_VERSION/minisign-$MINISIGN_VERSION-linux.tar.gz"
+          echo "$MINISIGN_SHA256  $RUNNER_TEMP/minisign.tar.gz" | sha256sum --strict --check
+          tar -xzf "$RUNNER_TEMP/minisign.tar.gz" -C "$RUNNER_TEMP" minisign-linux/x86_64/minisign
+      - name: Sign executables and checksums
+        if: inputs.confirmation == 'SIGN'
+        env:
+          VORDA_MINISIGN_SECRET_KEY: ${{ secrets.VORDA_MINISIGN_SECRET_KEY }}
+          VORDA_MINISIGN_PASSWORD: ${{ secrets.VORDA_MINISIGN_PASSWORD }}
+        run: bash rust/release/sign-native.sh "$RUNNER_TEMP/minisign-linux/x86_64/minisign" "$RUNNER_TEMP/package"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ inputs.confirmation == 'SIGN' && 'signed' || 'unsigned' }}-linux-${{ github.sha }}
+          path: ${{ runner.temp }}/package/
+          retention-days: 3
+          if-no-files-found: error
+  # Static (musl) executables that install.sh downloads. Unsigned and build-only;
+  # attach them to a release by hand with install.sh and a SHA256SUMS of the assets.
+  static:
+    if: (inputs.confirmation == 'BUILD' || inputs.confirmation == 'SIGN') && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust and musl tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q musl-tools
+          rustup toolchain install 1.99.1 --profile minimal --no-self-update --target ${{ matrix.target }}
+      - name: Build and check static executable
+        run: |
+          version=$(sed -n '/^\[package\]/,/^\[/s/^version = "\([^"]*\)"/\1/p' rust/Cargo.toml)
+          bash rust/release/build-native.sh ${{ matrix.target }} "$version" "$RUNNER_TEMP/package"
+          binary="$RUNNER_TEMP/package/vorda-$version-${{ matrix.target }}"
+          file "$binary" | grep -Eq 'statically linked|static-pie linked'
+          "$binary" --version
+          cargo build --locked --release --manifest-path rust/Cargo.toml --bin ci_helper
+          rust/target/release/ci_helper smoke "$binary"
+          (cd "$RUNNER_TEMP/package" && sha256sum --strict --check SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unsigned-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ runner.temp }}/package/
+          retention-days: 3
+          if-no-files-found: error

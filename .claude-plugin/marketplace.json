@@ -1,0 +1,11 @@
+{
+  "name": "vorda",
+  "owner": {"name": "Ken-Jee"},
+  "plugins": [
+    {
+      "name": "vorda",
+      "source": "./plugin",
+      "description": "Vulnerability mailbox for Claude Code: MCP tools, a session-start alert hook and a skill."
+    }
+  ]
+}

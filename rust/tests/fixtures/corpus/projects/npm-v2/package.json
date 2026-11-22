@@ -1,0 +1,11 @@
+{
+ "name": "npm-v2",
+ "version": "1.0.0",
+ "dependencies": {
+  "lodash": "4.17.20",
+  "minimist": "0.0.8"
+ },
+ "devDependencies": {
+  "ms": "0.7.0"
+ }
+}

@@ -1,0 +1,8 @@
+[Unit]
+Description=Deliver one queued Vorda result
+
+[Service]
+Type=oneshot
+ExecStart="%h/.local/bin/vorda-send"
+UMask=0077
+NoNewPrivileges=true

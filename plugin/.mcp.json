@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "vorda": {
+      "command": "vorda",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

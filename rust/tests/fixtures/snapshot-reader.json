@@ -1,0 +1,1320 @@
+{
+  "snapshots": [
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\ntampered\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":null,\"null_reason\":\"producer_time_unavailable\"},\"assessment_completed_at\":{\"value\":null,\"null_reason\":\"producer_time_unavailable\"},\"advisory_checked_at\":{\"value\":null,\"null_reason\":\"producer_time_unavailable\"},\"received_at\":{\"value\":null,\"null_reason\":\"producer_time_unavailable\"}},\"coverage\":{\"inventory\":{\"state\":\"unknown\",\"reason\":\"producer_coverage_unavailable\"},\"advisories\":{\"state\":\"unknown\",\"reason\":\"producer_coverage_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898400\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":null,\"null_reason\":\"legacy_observation_time_unavailable\"},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\",\"record-b\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"},{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}",
+    "{\"records\":[{\"record_id\":\"record-a1\",\"component_id\":\"component-a1\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{\"path\":\"/private/SENTINEL\"}},\"location_ref\":\"opaque-component-a1\",\"legacy_aliases\":[{\"namespace\":\"path\",\"value\":\"/private/SENTINEL\"}],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a2\",\"component_id\":\"component-a2\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"lodash\",\"version\":\"4.17.21\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a2\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-a3\",\"component_id\":\"component-a3\",\"assessment_id\":\"assessment-a\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"ansi-regex\",\"version\":\"5.0.1\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-a3\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"record_id\":\"record-b\",\"component_id\":\"component-b\",\"assessment_id\":\"assessment-b\",\"revision\":1,\"dimensions\":{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"},\"package\":{\"ecosystem\":\"npm\",\"namespace\":null,\"name\":\"B-SENTINEL\",\"version\":\"0\",\"qualifiers\":{}},\"location_ref\":\"opaque-component-b\",\"legacy_aliases\":[],\"times\":{\"observed_at\":{\"value\":\"1793898285.4219873\",\"null_reason\":null},\"assessment_completed_at\":{\"value\":\"1793898285.5498126\",\"null_reason\":null},\"advisory_checked_at\":{\"value\":\"1793898285.5764945\",\"null_reason\":null},\"received_at\":{\"value\":\"1793898300\",\"null_reason\":null}},\"coverage\":{\"inventory\":{\"state\":\"complete\",\"reason\":null},\"advisories\":{\"state\":\"unknown\",\"reason\":\"provider_unavailable\"},\"osv\":\"unavailable\",\"kev\":\"unknown\",\"epss\":null,\"global_clean\":false,\"fix_verified\":false},\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"evidence\":[{\"evidence_id\":\"evidence-a\",\"class\":\"inventory_projection\",\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"source_byte_length\":70,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-a1\",\"record-a2\",\"record-a3\"]},{\"evidence_id\":\"evidence-b\",\"class\":\"inventory_projection\",\"source_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\",\"source_byte_length\":45,\"producer\":{\"name\":\"derived-fixture\",\"source_pin\":\"not-native-collection\"},\"record_ids\":[\"record-b\"]}],\"retained_payload_utf8\":{\"evidence-a\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-a1\\\",\\\"record-a2\\\",\\\"record-a3\\\"]}\\n\",\"evidence-b\":\"{\\\"fixture\\\":\\\"DERIVED\\\",\\\"records\\\":[\\\"record-b\\\"]}\\n\"},\"catalog_tuples\":[{\"tenant\":\"tenant-fixture\",\"site\":\"site-a\",\"device\":\"device-a\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-a\"},{\"tenant\":\"tenant-fixture\",\"site\":\"site-b\",\"device\":\"device-b\",\"generation\":\"gen-b\",\"scope\":\"scope-b\",\"source\":\"npm-lock\",\"evidence_class\":\"inventory_projection\",\"evidence\":\"evidence-b\"}],\"assessment_bindings\":[{\"assessment_id\":\"assessment-a\",\"revision\":1,\"input_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"},{\"assessment_id\":\"assessment-b\",\"revision\":1,\"input_sha256\":\"51eb2ef1d08927b36692c6746c4d800f2a1d7164d7887d4b5b8186310308df0f\"}],\"header\":{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1},\"contract_version\":\"m0b-derived-1\"}"
+  ],
+  "grants": [
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"],\"region\":[\"west\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"unknown-site\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]},{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-b\"],\"device\":[\"device-b\"],\"generation\":[\"gen-b\"],\"scope\":[\"scope-b\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-b\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":null,\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":\"value\",\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":null,\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":\"value\",\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":null,\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":\"value\",\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":null,\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":\"value\",\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":null,\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":\"value\",\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":null,\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":\"value\",\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":null,\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":\"value\",\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":null}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":\"value\"}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":2,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":2,\"grant_revision\":1}",
+    "{\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1,\"clauses\":[],\"clauses\":[]}",
+    "{\"clauses\":[{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-b\"],\"device\":[\"device-a\"],\"generation\":[\"gen-a\"],\"scope\":[\"scope-a\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-a\"]},{\"tenant\":[\"tenant-fixture\"],\"site\":[\"site-a\"],\"device\":[\"device-b\"],\"generation\":[\"gen-b\"],\"scope\":[\"scope-b\"],\"source\":[\"npm-lock\"],\"evidence_class\":[\"inventory_projection\"],\"evidence\":[\"evidence-b\"]}],\"snapshot_id\":\"snapshot-fixture-1\",\"snapshot_revision\":1,\"catalog_id\":\"catalog-fixture-1\",\"catalog_revision\":1,\"grant_revision\":1}"
+  ],
+  "cases": [
+    {
+      "id": "A-list",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [
+          "record-a1",
+          "record-a2",
+          "record-a3"
+        ],
+        "counts": {
+          "records": 3,
+          "components": 3,
+          "packages": 2,
+          "devices": 1,
+          "evidence": 1
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [
+          "assessment-a"
+        ],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "A-count",
+      "query": "{\"op\":\"count\"}",
+      "expected": {
+        "counts": {
+          "records": 3,
+          "components": 3,
+          "packages": 2,
+          "devices": 1,
+          "evidence": 1
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [
+          "assessment-a"
+        ],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "A-detail",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "record_ids": [
+          "record-a1"
+        ],
+        "times": {
+          "observed_at": {
+            "value": "1793898285.4219873",
+            "null_reason": null
+          },
+          "assessment_completed_at": {
+            "value": "1793898285.5498126",
+            "null_reason": null
+          },
+          "advisory_checked_at": {
+            "value": "1793898285.5764945",
+            "null_reason": null
+          },
+          "received_at": {
+            "value": "1793898300",
+            "null_reason": null
+          }
+        },
+        "coverage": {
+          "inventory": {
+            "state": "complete",
+            "reason": null
+          },
+          "advisories": {
+            "state": "unknown",
+            "reason": "provider_unavailable"
+          },
+          "osv": "unavailable",
+          "kev": "unknown",
+          "epss": null,
+          "global_clean": false,
+          "fix_verified": false
+        }
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "A-evidence",
+      "query": "{\"op\":\"evidence\",\"id\":\"evidence-a\"}",
+      "expected": {
+        "evidence_id": "evidence-a",
+        "record_ids": [
+          "record-a1",
+          "record-a2",
+          "record-a3"
+        ],
+        "raw_source_returned": false,
+        "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7",
+        "projection": {
+          "contract_version": "m0b-derived-1",
+          "evidence_id": "evidence-a",
+          "records": [
+            {
+              "record_id": "record-a1",
+              "component_id": "component-a1",
+              "assessment_id": "assessment-a",
+              "revision": 1,
+              "dimensions": {
+                "tenant": "tenant-fixture",
+                "site": "site-a",
+                "device": "device-a",
+                "generation": "gen-a",
+                "scope": "scope-a",
+                "source": "npm-lock",
+                "evidence_class": "inventory_projection",
+                "evidence": "evidence-a"
+              },
+              "package": {
+                "ecosystem": "npm",
+                "namespace": null,
+                "name": "lodash",
+                "version": "4.17.21"
+              },
+              "times": {
+                "observed_at": {
+                  "value": "1793898285.4219873",
+                  "null_reason": null
+                },
+                "assessment_completed_at": {
+                  "value": "1793898285.5498126",
+                  "null_reason": null
+                },
+                "advisory_checked_at": {
+                  "value": "1793898285.5764945",
+                  "null_reason": null
+                },
+                "received_at": {
+                  "value": "1793898300",
+                  "null_reason": null
+                }
+              },
+              "coverage": {
+                "inventory": {
+                  "state": "complete",
+                  "reason": null
+                },
+                "advisories": {
+                  "state": "unknown",
+                  "reason": "provider_unavailable"
+                },
+                "osv": "unavailable",
+                "kev": "unknown",
+                "epss": null,
+                "global_clean": false,
+                "fix_verified": false
+              },
+              "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+            },
+            {
+              "record_id": "record-a2",
+              "component_id": "component-a2",
+              "assessment_id": "assessment-a",
+              "revision": 1,
+              "dimensions": {
+                "tenant": "tenant-fixture",
+                "site": "site-a",
+                "device": "device-a",
+                "generation": "gen-a",
+                "scope": "scope-a",
+                "source": "npm-lock",
+                "evidence_class": "inventory_projection",
+                "evidence": "evidence-a"
+              },
+              "package": {
+                "ecosystem": "npm",
+                "namespace": null,
+                "name": "lodash",
+                "version": "4.17.21"
+              },
+              "times": {
+                "observed_at": {
+                  "value": "1793898285.4219873",
+                  "null_reason": null
+                },
+                "assessment_completed_at": {
+                  "value": "1793898285.5498126",
+                  "null_reason": null
+                },
+                "advisory_checked_at": {
+                  "value": "1793898285.5764945",
+                  "null_reason": null
+                },
+                "received_at": {
+                  "value": "1793898300",
+                  "null_reason": null
+                }
+              },
+              "coverage": {
+                "inventory": {
+                  "state": "complete",
+                  "reason": null
+                },
+                "advisories": {
+                  "state": "unknown",
+                  "reason": "provider_unavailable"
+                },
+                "osv": "unavailable",
+                "kev": "unknown",
+                "epss": null,
+                "global_clean": false,
+                "fix_verified": false
+              },
+              "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+            },
+            {
+              "record_id": "record-a3",
+              "component_id": "component-a3",
+              "assessment_id": "assessment-a",
+              "revision": 1,
+              "dimensions": {
+                "tenant": "tenant-fixture",
+                "site": "site-a",
+                "device": "device-a",
+                "generation": "gen-a",
+                "scope": "scope-a",
+                "source": "npm-lock",
+                "evidence_class": "inventory_projection",
+                "evidence": "evidence-a"
+              },
+              "package": {
+                "ecosystem": "npm",
+                "namespace": null,
+                "name": "ansi-regex",
+                "version": "5.0.1"
+              },
+              "times": {
+                "observed_at": {
+                  "value": "1793898285.4219873",
+                  "null_reason": null
+                },
+                "assessment_completed_at": {
+                  "value": "1793898285.5498126",
+                  "null_reason": null
+                },
+                "advisory_checked_at": {
+                  "value": "1793898285.5764945",
+                  "null_reason": null
+                },
+                "received_at": {
+                  "value": "1793898300",
+                  "null_reason": null
+                }
+              },
+              "coverage": {
+                "inventory": {
+                  "state": "complete",
+                  "reason": null
+                },
+                "advisories": {
+                  "state": "unknown",
+                  "reason": "provider_unavailable"
+                },
+                "osv": "unavailable",
+                "kev": "unknown",
+                "epss": null,
+                "global_clean": false,
+                "fix_verified": false
+              },
+              "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+            }
+          ],
+          "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+        },
+        "projection_sha256": "08251c331ec4984099f546778ddfb8ec341367c4276c22ed87ca3b4f19f0447d",
+        "projection_utf8": "{\"contract_version\":\"m0b-derived-1\",\"evidence_id\":\"evidence-a\",\"records\":[{\"assessment_id\":\"assessment-a\",\"component_id\":\"component-a1\",\"coverage\":{\"advisories\":{\"reason\":\"provider_unavailable\",\"state\":\"unknown\"},\"epss\":null,\"fix_verified\":false,\"global_clean\":false,\"inventory\":{\"reason\":null,\"state\":\"complete\"},\"kev\":\"unknown\",\"osv\":\"unavailable\"},\"dimensions\":{\"device\":\"device-a\",\"evidence\":\"evidence-a\",\"evidence_class\":\"inventory_projection\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"site\":\"site-a\",\"source\":\"npm-lock\",\"tenant\":\"tenant-fixture\"},\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\",\"namespace\":null,\"version\":\"4.17.21\"},\"record_id\":\"record-a1\",\"revision\":1,\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"times\":{\"advisory_checked_at\":{\"null_reason\":null,\"value\":\"1793898285.5764945\"},\"assessment_completed_at\":{\"null_reason\":null,\"value\":\"1793898285.5498126\"},\"observed_at\":{\"null_reason\":null,\"value\":\"1793898285.4219873\"},\"received_at\":{\"null_reason\":null,\"value\":\"1793898300\"}}},{\"assessment_id\":\"assessment-a\",\"component_id\":\"component-a2\",\"coverage\":{\"advisories\":{\"reason\":\"provider_unavailable\",\"state\":\"unknown\"},\"epss\":null,\"fix_verified\":false,\"global_clean\":false,\"inventory\":{\"reason\":null,\"state\":\"complete\"},\"kev\":\"unknown\",\"osv\":\"unavailable\"},\"dimensions\":{\"device\":\"device-a\",\"evidence\":\"evidence-a\",\"evidence_class\":\"inventory_projection\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"site\":\"site-a\",\"source\":\"npm-lock\",\"tenant\":\"tenant-fixture\"},\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\",\"namespace\":null,\"version\":\"4.17.21\"},\"record_id\":\"record-a2\",\"revision\":1,\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"times\":{\"advisory_checked_at\":{\"null_reason\":null,\"value\":\"1793898285.5764945\"},\"assessment_completed_at\":{\"null_reason\":null,\"value\":\"1793898285.5498126\"},\"observed_at\":{\"null_reason\":null,\"value\":\"1793898285.4219873\"},\"received_at\":{\"null_reason\":null,\"value\":\"1793898300\"}}},{\"assessment_id\":\"assessment-a\",\"component_id\":\"component-a3\",\"coverage\":{\"advisories\":{\"reason\":\"provider_unavailable\",\"state\":\"unknown\"},\"epss\":null,\"fix_verified\":false,\"global_clean\":false,\"inventory\":{\"reason\":null,\"state\":\"complete\"},\"kev\":\"unknown\",\"osv\":\"unavailable\"},\"dimensions\":{\"device\":\"device-a\",\"evidence\":\"evidence-a\",\"evidence_class\":\"inventory_projection\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"site\":\"site-a\",\"source\":\"npm-lock\",\"tenant\":\"tenant-fixture\"},\"package\":{\"ecosystem\":\"npm\",\"name\":\"ansi-regex\",\"namespace\":null,\"version\":\"5.0.1\"},\"record_id\":\"record-a3\",\"revision\":1,\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"times\":{\"advisory_checked_at\":{\"null_reason\":null,\"value\":\"1793898285.5764945\"},\"assessment_completed_at\":{\"null_reason\":null,\"value\":\"1793898285.5498126\"},\"observed_at\":{\"null_reason\":null,\"value\":\"1793898285.4219873\"},\"received_at\":{\"null_reason\":null,\"value\":\"1793898300\"}}}],\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"}"
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "denial-detail-record-b",
+      "query": "{\"op\":\"detail\",\"id\":\"record-b\"}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "denial-detail-missing",
+      "query": "{\"op\":\"detail\",\"id\":\"missing\"}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "denial-evidence-evidence-b",
+      "query": "{\"op\":\"evidence\",\"id\":\"evidence-b\"}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "denial-evidence-missing",
+      "query": "{\"op\":\"evidence\",\"id\":\"missing\"}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "omitted-tenant",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 1
+    },
+    {
+      "id": "empty-tenant",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 2
+    },
+    {
+      "id": "omitted-site",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 3
+    },
+    {
+      "id": "empty-site",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 4
+    },
+    {
+      "id": "omitted-device",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 5
+    },
+    {
+      "id": "empty-device",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 6
+    },
+    {
+      "id": "omitted-generation",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 7
+    },
+    {
+      "id": "empty-generation",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 8
+    },
+    {
+      "id": "omitted-scope",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 9
+    },
+    {
+      "id": "empty-scope",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 10
+    },
+    {
+      "id": "omitted-source",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 11
+    },
+    {
+      "id": "empty-source",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 12
+    },
+    {
+      "id": "omitted-evidence_class",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 13
+    },
+    {
+      "id": "empty-evidence_class",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 14
+    },
+    {
+      "id": "omitted-evidence",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 15
+    },
+    {
+      "id": "empty-evidence",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 16
+    },
+    {
+      "id": "empty-map",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 17
+    },
+    {
+      "id": "unknown-grant-axis",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 18
+    },
+    {
+      "id": "unknown-query-axis",
+      "query": "{\"op\":\"list\",\"scope_filter\":{\"region\":[\"west\"]}}",
+      "expected": {
+        "error": "invalid_query",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "unknown-grant-value",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 19
+    },
+    {
+      "id": "widening",
+      "query": "{\"op\":\"list\",\"scope_filter\":{\"site\":[\"site-b\"]}}",
+      "expected": {
+        "error": "scope_widening_refused",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "wildcard",
+      "query": "{\"op\":\"list\",\"scope_filter\":{\"site\":[\"*\"]}}",
+      "expected": {
+        "error": "invalid_query",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "empty-filter",
+      "query": "{\"op\":\"list\",\"scope_filter\":{\"site\":[]}}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "package-lodash",
+      "query": "{\"op\":\"list\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\"}}",
+      "expected": {
+        "record_ids": [
+          "record-a1",
+          "record-a2"
+        ],
+        "counts": {
+          "records": 2,
+          "components": 2,
+          "packages": 1,
+          "devices": 1,
+          "evidence": 1
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [
+          "assessment-a"
+        ],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "package-absent",
+      "query": "{\"op\":\"list\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"express\"}}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_basis": "authorized_pre_package_filter",
+        "coverage_assessment_ids": [
+          "assessment-a"
+        ],
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "multi-detail-matches",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\"}}",
+      "expected": {
+        "record_ids": [
+          "record-a1"
+        ]
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "multi-detail-filter-miss",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"ansi-regex\"}}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "multi-evidence-filter",
+      "query": "{\"op\":\"evidence\",\"id\":\"evidence-a\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\"}}",
+      "expected": {
+        "record_ids": [
+          "record-a1",
+          "record-a2"
+        ],
+        "raw_source_returned": false,
+        "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7",
+        "forbidden_record_ids": [
+          "record-a3",
+          "record-b"
+        ],
+        "projection": {
+          "contract_version": "m0b-derived-1",
+          "evidence_id": "evidence-a",
+          "records": [
+            {
+              "record_id": "record-a1",
+              "component_id": "component-a1",
+              "assessment_id": "assessment-a",
+              "revision": 1,
+              "dimensions": {
+                "tenant": "tenant-fixture",
+                "site": "site-a",
+                "device": "device-a",
+                "generation": "gen-a",
+                "scope": "scope-a",
+                "source": "npm-lock",
+                "evidence_class": "inventory_projection",
+                "evidence": "evidence-a"
+              },
+              "package": {
+                "ecosystem": "npm",
+                "namespace": null,
+                "name": "lodash",
+                "version": "4.17.21"
+              },
+              "times": {
+                "observed_at": {
+                  "value": "1793898285.4219873",
+                  "null_reason": null
+                },
+                "assessment_completed_at": {
+                  "value": "1793898285.5498126",
+                  "null_reason": null
+                },
+                "advisory_checked_at": {
+                  "value": "1793898285.5764945",
+                  "null_reason": null
+                },
+                "received_at": {
+                  "value": "1793898300",
+                  "null_reason": null
+                }
+              },
+              "coverage": {
+                "inventory": {
+                  "state": "complete",
+                  "reason": null
+                },
+                "advisories": {
+                  "state": "unknown",
+                  "reason": "provider_unavailable"
+                },
+                "osv": "unavailable",
+                "kev": "unknown",
+                "epss": null,
+                "global_clean": false,
+                "fix_verified": false
+              },
+              "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+            },
+            {
+              "record_id": "record-a2",
+              "component_id": "component-a2",
+              "assessment_id": "assessment-a",
+              "revision": 1,
+              "dimensions": {
+                "tenant": "tenant-fixture",
+                "site": "site-a",
+                "device": "device-a",
+                "generation": "gen-a",
+                "scope": "scope-a",
+                "source": "npm-lock",
+                "evidence_class": "inventory_projection",
+                "evidence": "evidence-a"
+              },
+              "package": {
+                "ecosystem": "npm",
+                "namespace": null,
+                "name": "lodash",
+                "version": "4.17.21"
+              },
+              "times": {
+                "observed_at": {
+                  "value": "1793898285.4219873",
+                  "null_reason": null
+                },
+                "assessment_completed_at": {
+                  "value": "1793898285.5498126",
+                  "null_reason": null
+                },
+                "advisory_checked_at": {
+                  "value": "1793898285.5764945",
+                  "null_reason": null
+                },
+                "received_at": {
+                  "value": "1793898300",
+                  "null_reason": null
+                }
+              },
+              "coverage": {
+                "inventory": {
+                  "state": "complete",
+                  "reason": null
+                },
+                "advisories": {
+                  "state": "unknown",
+                  "reason": "provider_unavailable"
+                },
+                "osv": "unavailable",
+                "kev": "unknown",
+                "epss": null,
+                "global_clean": false,
+                "fix_verified": false
+              },
+              "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+            }
+          ],
+          "source_sha256": "4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7"
+        },
+        "projection_sha256": "9044e74f2ad97da5f6a57de354c370b87dd8c651cadffd505e3a41362d9198b3",
+        "projection_utf8": "{\"contract_version\":\"m0b-derived-1\",\"evidence_id\":\"evidence-a\",\"records\":[{\"assessment_id\":\"assessment-a\",\"component_id\":\"component-a1\",\"coverage\":{\"advisories\":{\"reason\":\"provider_unavailable\",\"state\":\"unknown\"},\"epss\":null,\"fix_verified\":false,\"global_clean\":false,\"inventory\":{\"reason\":null,\"state\":\"complete\"},\"kev\":\"unknown\",\"osv\":\"unavailable\"},\"dimensions\":{\"device\":\"device-a\",\"evidence\":\"evidence-a\",\"evidence_class\":\"inventory_projection\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"site\":\"site-a\",\"source\":\"npm-lock\",\"tenant\":\"tenant-fixture\"},\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\",\"namespace\":null,\"version\":\"4.17.21\"},\"record_id\":\"record-a1\",\"revision\":1,\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"times\":{\"advisory_checked_at\":{\"null_reason\":null,\"value\":\"1793898285.5764945\"},\"assessment_completed_at\":{\"null_reason\":null,\"value\":\"1793898285.5498126\"},\"observed_at\":{\"null_reason\":null,\"value\":\"1793898285.4219873\"},\"received_at\":{\"null_reason\":null,\"value\":\"1793898300\"}}},{\"assessment_id\":\"assessment-a\",\"component_id\":\"component-a2\",\"coverage\":{\"advisories\":{\"reason\":\"provider_unavailable\",\"state\":\"unknown\"},\"epss\":null,\"fix_verified\":false,\"global_clean\":false,\"inventory\":{\"reason\":null,\"state\":\"complete\"},\"kev\":\"unknown\",\"osv\":\"unavailable\"},\"dimensions\":{\"device\":\"device-a\",\"evidence\":\"evidence-a\",\"evidence_class\":\"inventory_projection\",\"generation\":\"gen-a\",\"scope\":\"scope-a\",\"site\":\"site-a\",\"source\":\"npm-lock\",\"tenant\":\"tenant-fixture\"},\"package\":{\"ecosystem\":\"npm\",\"name\":\"lodash\",\"namespace\":null,\"version\":\"4.17.21\"},\"record_id\":\"record-a2\",\"revision\":1,\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\",\"times\":{\"advisory_checked_at\":{\"null_reason\":null,\"value\":\"1793898285.5764945\"},\"assessment_completed_at\":{\"null_reason\":null,\"value\":\"1793898285.5498126\"},\"observed_at\":{\"null_reason\":null,\"value\":\"1793898285.4219873\"},\"received_at\":{\"null_reason\":null,\"value\":\"1793898300\"}}}],\"source_sha256\":\"4a1dd56a0db6529a5631598c7377c6d2830d61218c325e7855d5a263d6f537f7\"}"
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "multi-evidence-filter-miss",
+      "query": "{\"op\":\"evidence\",\"id\":\"evidence-a\",\"package\":{\"ecosystem\":\"npm\",\"name\":\"express\"}}",
+      "expected": {
+        "error": "not_found_or_not_authorized",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "forged-evidence-binding",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "error": "integrity_failure",
+        "data": null
+      },
+      "snapshot_index": 1,
+      "grant_index": 0
+    },
+    {
+      "id": "forged-evidence-content",
+      "query": "{\"op\":\"evidence\",\"id\":\"evidence-a\"}",
+      "expected": {
+        "error": "integrity_failure",
+        "data": null
+      },
+      "snapshot_index": 2,
+      "grant_index": 0
+    },
+    {
+      "id": "unknown-times-coverage",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "times": {
+          "observed_at": {
+            "value": null,
+            "null_reason": "producer_time_unavailable"
+          },
+          "assessment_completed_at": {
+            "value": null,
+            "null_reason": "producer_time_unavailable"
+          },
+          "advisory_checked_at": {
+            "value": null,
+            "null_reason": "producer_time_unavailable"
+          },
+          "received_at": {
+            "value": null,
+            "null_reason": "producer_time_unavailable"
+          }
+        },
+        "age_seconds": null,
+        "freshness": "unknown",
+        "inventory_state": "unknown",
+        "advisory_state": "unknown",
+        "kev": "unknown",
+        "epss": null,
+        "global_clean": false,
+        "fix_verified": false
+      },
+      "snapshot_index": 3,
+      "grant_index": 0
+    },
+    {
+      "id": "future-time",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "age_seconds": null,
+        "freshness": "clock_skew",
+        "global_clean": false
+      },
+      "snapshot_index": 4,
+      "grant_index": 0
+    },
+    {
+      "id": "legacy-unknown-time",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "observed_at": {
+          "value": null,
+          "null_reason": "legacy_observation_time_unavailable"
+        },
+        "age_seconds": null
+      },
+      "snapshot_index": 5,
+      "grant_index": 0
+    },
+    {
+      "id": "explicit-owner-snapshot",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [
+          "record-a1",
+          "record-a2",
+          "record-a3",
+          "record-b"
+        ],
+        "counts": {
+          "records": 4,
+          "components": 4,
+          "packages": 3,
+          "devices": 2,
+          "evidence": 2
+        }
+      },
+      "snapshot_index": 0,
+      "grant_index": 20
+    },
+    {
+      "id": "empty-grant-clauses",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_assessment_ids": []
+      },
+      "snapshot_index": 0,
+      "grant_index": 21
+    },
+    {
+      "id": "tenant-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 22
+    },
+    {
+      "id": "tenant-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 23
+    },
+    {
+      "id": "site-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 24
+    },
+    {
+      "id": "site-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 25
+    },
+    {
+      "id": "device-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 26
+    },
+    {
+      "id": "device-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 27
+    },
+    {
+      "id": "generation-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 28
+    },
+    {
+      "id": "generation-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 29
+    },
+    {
+      "id": "scope-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 30
+    },
+    {
+      "id": "scope-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 31
+    },
+    {
+      "id": "source-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 32
+    },
+    {
+      "id": "source-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 33
+    },
+    {
+      "id": "evidence_class-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 34
+    },
+    {
+      "id": "evidence_class-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 35
+    },
+    {
+      "id": "evidence-null",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 36
+    },
+    {
+      "id": "evidence-wrong-type",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 37
+    },
+    {
+      "id": "null-filter",
+      "query": "{\"op\":\"list\",\"scope_filter\":null}",
+      "expected": {
+        "error": "invalid_query",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "bad-snapshot",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 38
+    },
+    {
+      "id": "bad-catalog",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 39
+    },
+    {
+      "id": "cross-member",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "integrity_failure",
+        "data": null
+      },
+      "snapshot_index": 6,
+      "grant_index": 0
+    },
+    {
+      "id": "duplicate-record",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "integrity_failure",
+        "data": null
+      },
+      "snapshot_index": 7,
+      "grant_index": 0
+    },
+    {
+      "id": "unknown-query",
+      "query": "{\"op\":\"list\",\"scope_filter\":{\"site\":[\"unknown-site\"]}}",
+      "expected": {
+        "error": "scope_widening_refused",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "duplicate-query-key",
+      "query": "{\"op\":\"list\",\"op\":\"count\"}",
+      "expected": {
+        "error": "invalid_query",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    },
+    {
+      "id": "duplicate-grant-key",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "error": "invalid_grant",
+        "data": null
+      },
+      "snapshot_index": 0,
+      "grant_index": 40
+    },
+    {
+      "id": "cross-clause-no-union",
+      "query": "{\"op\":\"list\"}",
+      "expected": {
+        "record_ids": [],
+        "counts": {
+          "records": 0,
+          "components": 0,
+          "packages": 0,
+          "devices": 0,
+          "evidence": 0
+        },
+        "coverage_assessment_ids": []
+      },
+      "snapshot_index": 0,
+      "grant_index": 41
+    },
+    {
+      "id": "path-alias",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "record_id": "record-a1",
+        "forbidden_keys": [
+          "legacy_aliases",
+          "location_ref",
+          "qualifiers"
+        ],
+        "forbidden_text": [
+          "/private/SENTINEL"
+        ]
+      },
+      "snapshot_index": 8,
+      "grant_index": 0
+    },
+    {
+      "id": "known-age",
+      "query": "{\"op\":\"detail\",\"id\":\"record-a1\"}",
+      "expected": {
+        "age_seconds": "44.5780127",
+        "freshness": "not_evaluated"
+      },
+      "snapshot_index": 0,
+      "grant_index": 0
+    }
+  ]
+}

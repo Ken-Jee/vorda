@@ -1,0 +1,280 @@
+name: Rust CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: Run Windows native smoke as well
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: rust-ci-${{ github.event_name == 'push' && github.sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  RUSTUP_TOOLCHAIN: 1.99.1
+  # Hosted runners have few cores; a larger self-hosted runner may set more.
+  CARGO_BUILD_JOBS: ${{ vars.VORDA_CARGO_BUILD_JOBS || 2 }}
+  CARGO_INCREMENTAL: 0
+jobs:
+  changes:
+    # Pull requests from forks always run on GitHub-hosted runners, never the configured ones.
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-24.04' || vars.VORDA_LIGHT_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.paths.outputs.rust }}
+      linux-runner: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-24.04' || vars.VORDA_LINUX_RUNNER || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          # Manual runs get the full suite. PRs and pushes to main are path-filtered; a push whose
+          # previous commit cannot be compared also gets the full suite.
+          if [[ "$EVENT" == push ]]; then
+            changed=$(git diff --name-only "$BEFORE" "$AFTER" 2> /dev/null) || EVENT=workflow_dispatch
+          else
+            changed=$(git diff --name-only "$BASE...$HEAD")
+          fi
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            echo 'rust=true' >> "$GITHUB_OUTPUT"
+          else
+            if grep -Eq '^(rust/|plugin/|action[.]yml$|packaging/linking/|fixtures/|tests/fixtures/|[.]github/workflows/|[.]cargo/|[.]gitignore$|Cargo[.](toml|lock)$|rust-toolchain([.]toml)?$|LICENSE|LICENSES/|THIRD_PARTY_NOTICES)' <<< "$changed"; then
+              echo 'rust=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'rust=false' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+  linux:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ${{ needs.changes.outputs.linux-runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Configure build storage
+        id: storage
+        # A persistent runner may name a target directory that outlives the job (set in its own
+        # environment, not by the repository); it then replaces the compiled cache below.
+        run: |
+          if [[ -n ${VORDA_RUNNER_TARGET_DIR:-} ]]; then
+            echo "CARGO_TARGET_DIR=$VORDA_RUNNER_TARGET_DIR" >> "$GITHUB_ENV"
+            echo 'persistent=true' >> "$GITHUB_OUTPUT"
+          else
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/vorda-target" >> "$GITHUB_ENV"
+          fi
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --no-self-update
+      - name: Install pinned cargo-nextest
+        env:
+          NEXTEST_VERSION: 0.9.151
+          NEXTEST_SHA256: 1d4ce302b820c41f4b89c5fb9bce45f0f0c94882c1cf08fc360caf08be6e7df4
+        run: |
+          archive="$RUNNER_TEMP/nextest.tar.gz"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$archive" \
+            "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$NEXTEST_VERSION/cargo-nextest-$NEXTEST_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$NEXTEST_SHA256  $archive" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/nextest-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/nextest-bin" cargo-nextest
+          echo "$RUNNER_TEMP/nextest-bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cargo/registry/cache
+          key: cargo-v2-${{ needs.changes.outputs.linux-runner }}-${{ runner.os }}-${{ runner.arch }}-1.99.1-debug-default-${{ hashFiles('rust/Cargo.lock') }}
+      - name: Record registry cache identity
+        run: |
+          for root in "$HOME/.cargo/registry/cache" "${CARGO_HOME:-$HOME/.cargo}/registry/cache"; do
+            printf 'registry cache %s: ' "$root"
+            if [[ -d "$root" ]]; then find "$root" -type f -name '*.crate' | wc -l; else echo 0; fi
+          done
+      - name: Restore compiled Rust cache
+        if: steps.storage.outputs.persistent != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ env.CARGO_TARGET_DIR }}
+          key: rust-target-v1-${{ needs.changes.outputs.linux-runner }}-${{ runner.os }}-${{ runner.arch }}-1.99.1-${{ hashFiles('rust/Cargo.lock', 'rust/ci/controller/**') }}-${{ github.sha }}
+          restore-keys: |
+            rust-target-v1-${{ needs.changes.outputs.linux-runner }}-${{ runner.os }}-${{ runner.arch }}-1.99.1-${{ hashFiles('rust/Cargo.lock', 'rust/ci/controller/**') }}-
+      - name: Prepare isolated Git fixtures
+        run: |
+          git config --global user.name Fixture
+          git config --global user.email fixture@example.invalid
+          if git config --global --get-regexp '^filter\.lfs\.'; then
+            git config --global --remove-section filter.lfs
+          fi
+          if git config --system --get-regexp '^filter\.lfs\.'; then
+            sudo git config --system --remove-section filter.lfs
+          fi
+      - name: Prepare fixture mount isolation
+        run: |
+          if ! command -v bwrap >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends bubblewrap
+          fi
+      - name: Allow unprivileged user namespaces for bwrap on GitHub-hosted runners
+        # Ubuntu 24.04 images ship AppArmor's userns restriction on, so bwrap cannot map its uid.
+        # bwrap also needs the node_modules mask targets to exist; the hosted image lacks one.
+        if: runner.environment == 'github-hosted'
+        run: |
+          sysctl kernel.apparmor_restrict_unprivileged_userns
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo mkdir -p /usr/lib/node_modules /usr/local/lib/node_modules
+      - name: Bootstrap development controller before product compilation
+        run: |
+          : > "$RUNNER_TEMP/acceptance.json"
+          sha256sum -c rust/ci/controller/sources.sha256
+          [[ $(stat -c %a rust/ci/controller/Cargo.toml) == 644 && $(stat -c %a rust/ci/controller/Cargo.lock) == 644 && $(stat -c %a rust/ci/controller/src/main.rs) == 644 ]]
+          cargo build --locked --manifest-path rust/ci/controller/Cargo.toml --target-dir "$RUNNER_TEMP/vorda-controller-target"
+          test -x "$RUNNER_TEMP/vorda-controller-target/debug/vorda-ci-controller"
+          sha256sum "$RUNNER_TEMP/vorda-controller-target/debug/vorda-ci-controller"
+          echo "VORDA_CONTROLLER=$RUNNER_TEMP/vorda-controller-target/debug/vorda-ci-controller" >> "$GITHUB_ENV"
+      - name: Run native controller regressions
+        run: |
+          cargo test --locked --offline --manifest-path rust/ci/controller/Cargo.toml --target-dir "$RUNNER_TEMP/vorda-controller-target" -- --test-threads=1
+          bash rust/ci/controller/tests/log-preservation.sh "$VORDA_CONTROLLER"
+          bash rust/ci/controller/tests/sandbox-masks.sh
+      - name: Run authoritative acceptance
+        run: |
+          cargo fetch --locked --manifest-path rust/Cargo.toml
+          root="${CARGO_HOME:-$HOME/.cargo}/registry/cache"
+          printf 'effective registry cache %s: ' "$root"
+          if [[ -d "$root" ]]; then find "$root" -type f -name '*.crate' | wc -l; else echo 0; fi
+          # Mask only the node_modules directories this host has; a self-hosted runner cannot create them.
+          source rust/ci/sandbox.sh
+          mapfile -t masks < <(sandbox_mask_args "${sandbox_masked_dirs[@]}")
+          setpriv --inh-caps=-all --ambient-caps=-all bwrap --bind / / --dev /dev "${masks[@]}" \
+            -- env VORDA_SOURCE_ROOT="$PWD" "$VORDA_CONTROLLER" ci --result-file "$RUNNER_TEMP/acceptance.json"
+      - name: Clippy on every target
+        working-directory: rust
+        run: |
+          rustup component add clippy --toolchain 1.99.1
+          cargo clippy --locked --offline --all-targets -- -D warnings
+      - name: Vorda scans its own Cargo.lock
+        # Reading the lockfile is offline and must be complete. Findings fail the step, also when
+        # a side feed is down (exit 2 with findings). When the advisory feeds cannot be reached and
+        # nothing was found, the result is unknown: that is reported as a warning, so feed outages
+        # do not make CI flaky; the dependency audit below still runs.
+        working-directory: rust
+        run: |
+          cargo build --locked --offline --bin vorda
+          vorda="$CARGO_TARGET_DIR/debug/vorda"
+          state="$RUNNER_TEMP/vorda-self-scan"
+          "$vorda" --state "$state" inventory --root Cargo.lock > "$RUNNER_TEMP/self-inventory.json"
+          echo "packages read: $(jq '.packages | length' "$RUNNER_TEMP/self-inventory.json")"
+          set +e
+          "$vorda" --state "$state" scan --online --json --root Cargo.lock > "$RUNNER_TEMP/self-scan.json"
+          code=$?
+          set -e
+          if ! jq -e . "$RUNNER_TEMP/self-scan.json" > /dev/null 2>&1; then
+            echo "::error title=Vorda self-scan::scan exited $code without a JSON result"
+            exit 1
+          fi
+          titles=$(jq -r '.. | objects | select(has("advisory") and has("title")) | .title' "$RUNNER_TEMP/self-scan.json" | sort -u)
+          case "$code" in
+            0) echo "no known advisories in Cargo.lock" ;;
+            2) jq -r '.errors[]?' "$RUNNER_TEMP/self-scan.json" | head -20
+               if [[ -n "$titles" ]]; then
+                 echo "::error title=Vorda self-scan::known advisories in Cargo.lock (some feeds incomplete)"
+                 echo "$titles"
+                 exit 1
+               fi
+               echo "::warning title=Vorda self-scan::advisory feeds unreachable or incomplete; result unknown" ;;
+            3) echo "::error title=Vorda self-scan::known advisories in Cargo.lock"
+               echo "$titles"
+               exit 1 ;;
+            *) echo "::error title=Vorda self-scan::scan failed with exit $code"; exit 1 ;;
+          esac
+      - name: Dependency audit
+        # The advisory database is fetched first and on its own; if GitHub cannot be reached the
+        # step warns instead of failing. With the database present, a vulnerability fails it.
+        env:
+          AUDIT_VERSION: 0.22.2
+          AUDIT_SHA256: ab28a1bdb54db4d5d8ad5981cf1f959410370b3d28250dbd35f6a44248620e39
+        run: |
+          name="cargo-audit-x86_64-unknown-linux-gnu-v$AUDIT_VERSION"
+          archive="$RUNNER_TEMP/cargo-audit.tar.gz"
+          db="$RUNNER_TEMP/advisory-db"
+          if ! curl --proto '=https' --tlsv1.2 -fsSL --retry 2 -o "$archive" \
+              "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v$AUDIT_VERSION/$name.tgz" \
+            || ! git clone --quiet --depth 1 https://github.com/rustsec/advisory-db "$db"; then
+            echo "::warning title=Dependency audit::cargo-audit or the advisory database could not be fetched; audit not run"
+            exit 0
+          fi
+          echo "$AUDIT_SHA256  $archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" "$name/cargo-audit"
+          "$RUNNER_TEMP/$name/cargo-audit" audit --no-fetch --db "$db" --file rust/Cargo.lock
+      - name: Run native-admission-test fault and budget tests
+        # The default build compiles the fault seams out; this extra, feature-enabled run is the only
+        # place the crash, full-database and expired-budget tests execute.
+        working-directory: rust
+        run: >-
+          cargo nextest run --locked --offline --features native-admission-test
+          --test native_faults --test isolated_transport
+          --test-threads=4 --retries=0
+          -E 'binary(native_faults) | test(/full_database_refuses|budget_expired_before_acquisition/)'
+      - name: Preserve compilation and acceptance diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-acceptance-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/acceptance.json
+            ${{ env.CARGO_TARGET_DIR }}/acceptance-v2/*/check.log
+            ${{ env.CARGO_TARGET_DIR }}/acceptance-v2/*/last-check.json
+
+  windows:
+    if: github.event_name == 'workflow_dispatch' && inputs.windows
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --no-self-update
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cargo/registry/cache
+          key: cargo-v2-${{ runner.os }}-${{ runner.arch }}-1.99.1-debug-default-${{ hashFiles('rust/Cargo.lock') }}
+      - name: Native Windows CLI smoke
+        working-directory: rust
+        run: |
+          cargo build --locked --bin vorda --bin ci_helper
+          ./target/debug/vorda.exe --help
+          ./target/debug/ci_helper.exe smoke target/debug/vorda.exe
+  result:
+    if: always()
+    needs: [changes, linux, windows]
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-24.04' || vars.VORDA_LIGHT_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 2
+    steps:
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          REQUIRED: ${{ needs.changes.outputs.rust }}
+          LINUX: ${{ needs.linux.result }}
+          WINDOWS: ${{ needs.windows.result }}
+          WINDOWS_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.windows }}
+        run: |
+          [[ "$CHANGES" == success ]]
+          [[ "$REQUIRED" == true || "$REQUIRED" == false ]]
+          [[ "$WINDOWS_REQUIRED" == true || "$WINDOWS_REQUIRED" == false ]]
+          if [[ "$REQUIRED" == true ]]; then [[ "$LINUX" == success ]]; fi
+          if [[ "$WINDOWS_REQUIRED" == true ]]; then [[ "$WINDOWS" == success ]]; fi

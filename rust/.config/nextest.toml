@@ -1,0 +1,20 @@
+[test-groups]
+isolated-transport = { max-threads = 1 }
+
+# These tests have wall-clock bounds and share the single active slot of a CPU-starved listener,
+# so no other test, in this binary or another, runs while one of them does.
+[[profile.default.overrides]]
+filter = 'binary(isolated_transport)'
+test-group = 'isolated-transport'
+threads-required = 'num-test-threads'
+
+# A wall-clock bound on building the dashboard snapshot; it runs alone so load cannot fail it.
+[[profile.default.overrides]]
+filter = 'binary(dashboard_projects) & test(=thousands_of_findings_across_lists_still_render_quickly)'
+threads-required = 'num-test-threads'
+
+# The YAML parser stops on time before memory when the CPU is shared (2-vCPU hosted runners), so
+# this "too large" case runs alone.
+[[profile.default.overrides]]
+filter = 'binary(scanner_coverage) & test(=oversized_or_deeply_nested_toml_and_yaml_are_unknown_before_parsing)'
+threads-required = 'num-test-threads'

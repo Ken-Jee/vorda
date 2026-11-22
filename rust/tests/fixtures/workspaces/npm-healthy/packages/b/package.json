@@ -1,0 +1,7 @@
+{
+  "name": "ws-b",
+  "version": "1.0.0",
+  "dependencies": {
+    "ws-a": "1.0.0"
+  }
+}

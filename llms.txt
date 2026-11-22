@@ -1,0 +1,7 @@
+# Vorda
+
+- [Agent instructions](docs/agents.md): MCP setup, command help, JSON and exit codes.
+- [Technical reference](docs/reference.md): coverage, policy, delivery and repairs.
+- [Quick start](README.md): install and run a scan.
+- [Status and limits](docs/status.md): what is unfinished, experimental or not covered.
+- [Documentation index](docs/README.md): every user doc.

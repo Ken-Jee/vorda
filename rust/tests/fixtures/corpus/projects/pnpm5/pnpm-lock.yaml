@@ -1,0 +1,17 @@
+lockfileVersion: 5.4
+
+specifiers:
+  lodash: 4.17.20
+
+dependencies:
+  lodash: 4.17.20
+
+packages:
+
+  /lodash/4.17.20:
+    resolution: {integrity: sha512-x}
+    dev: false
+
+  /@babel/traverse/7.23.0:
+    resolution: {integrity: sha512-x}
+    dev: false

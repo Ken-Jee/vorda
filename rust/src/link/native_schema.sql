@@ -1,0 +1,7 @@
+CREATE TABLE v2_authorities(authority TEXT PRIMARY KEY,source TEXT NOT NULL,frontier INTEGER NOT NULL,delivery_frontier INTEGER NOT NULL,publication INTEGER NOT NULL,current_view TEXT);
+CREATE TABLE v2_assessments(authority TEXT NOT NULL,assessment TEXT NOT NULL,revision INTEGER NOT NULL,evidence TEXT NOT NULL,digest TEXT NOT NULL,artifact BLOB NOT NULL,members BLOB NOT NULL,received TEXT NOT NULL,result TEXT NOT NULL,header BLOB NOT NULL,PRIMARY KEY(authority,assessment),UNIQUE(authority,revision),UNIQUE(authority,evidence));
+CREATE TABLE v2_observations(authority TEXT NOT NULL,record TEXT NOT NULL,assessment TEXT NOT NULL,payload BLOB NOT NULL,PRIMARY KEY(authority,record));
+CREATE TABLE v2_current(authority TEXT NOT NULL,path TEXT NOT NULL,record TEXT NOT NULL,PRIMARY KEY(authority,path));
+CREATE TABLE v2_coverage(authority TEXT NOT NULL,path TEXT NOT NULL,assessment TEXT NOT NULL,payload BLOB NOT NULL,PRIMARY KEY(authority,path));
+CREATE TABLE v2_deliveries(authority TEXT NOT NULL,source TEXT NOT NULL,sequence INTEGER NOT NULL,digest TEXT NOT NULL,ack BLOB NOT NULL,PRIMARY KEY(authority,source,sequence));
+CREATE TABLE v2_views(authority TEXT NOT NULL,publication INTEGER NOT NULL,header BLOB NOT NULL,payload BLOB NOT NULL,PRIMARY KEY(authority,publication));

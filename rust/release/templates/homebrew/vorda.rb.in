@@ -1,0 +1,35 @@
+class Vorda < Formula
+  desc "Local vulnerability mailbox for developers and AI agents"
+  homepage "@REPO_URL@"
+  version "@VERSION@"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "@REPO_URL@/releases/download/v@VERSION@/vorda-@VERSION@-aarch64-apple-darwin"
+      sha256 "@SHA256_MAC_ARM64@"
+    end
+    on_intel do
+      url "@REPO_URL@/releases/download/v@VERSION@/vorda-@VERSION@-x86_64-apple-darwin"
+      sha256 "@SHA256_MAC_X64@"
+    end
+  end
+  on_linux do
+    on_arm do
+      url "@REPO_URL@/releases/download/v@VERSION@/vorda-@VERSION@-aarch64-unknown-linux-gnu"
+      sha256 "@SHA256_LINUX_ARM64@"
+    end
+    on_intel do
+      url "@REPO_URL@/releases/download/v@VERSION@/vorda-@VERSION@-x86_64-unknown-linux-gnu"
+      sha256 "@SHA256_LINUX_X64@"
+    end
+  end
+
+  def install
+    bin.install Dir["vorda-#{version}-*"].first => "vorda"
+  end
+
+  test do
+    system bin/"vorda", "--help"
+  end
+end

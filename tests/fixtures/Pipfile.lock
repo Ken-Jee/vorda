@@ -1,0 +1,1 @@
+{"_meta": {"pipfile-spec": 6}, "default": {"django": {"version": "==2.2.0"}}}

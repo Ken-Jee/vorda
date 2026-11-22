@@ -1,0 +1,5 @@
+[packages]
+django = "==2.2"
+requests="==2.19.0"
+[dev-packages]
+pyyaml="==5.1"

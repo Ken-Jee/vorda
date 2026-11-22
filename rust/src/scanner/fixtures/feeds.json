@@ -1,0 +1,135 @@
+{
+  "findings": [
+    {
+      "key": "afa2609dab8d35658368f5c9",
+      "asset": "a97d6019daf97bd9792111b3",
+      "title": "test 1.0.0: CVE-2026-0001",
+      "package": {
+        "name": "test",
+        "version": "1.0.0",
+        "ecosystem": "npm",
+        "path": "/private-project/package-lock.json",
+        "scope": "reachable-unknown",
+        "origin": "project"
+      },
+      "advisory": "CVE-2026-0001",
+      "aliases": [
+        "CVE-2026-0001",
+        "DEBIAN-test",
+        "DSA-test"
+      ],
+      "kev": true,
+      "epss": 0.1,
+      "severity": [],
+      "fixed": [
+        "2.0.0",
+        "2.1.0"
+      ],
+      "detail_status": "complete",
+      "source_url": [
+        "https://api.osv.dev/v1/vulns/DSA-test",
+        "https://api.osv.dev/v1/vulns/DEBIAN-test"
+      ],
+      "fetched_at": "2026-11-03T00:00:00Z",
+      "affected_ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.0.0"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.1.0"
+            }
+          ]
+        }
+      ],
+      "published": null,
+      "priority": {
+        "level": "critical",
+        "cvss": null,
+        "kev": true,
+        "epss": 0.1
+      }
+    },
+    {
+      "key": "eeda8f21c9684b22f3bfc670",
+      "asset": "9d40becea09b7e09305c827e",
+      "title": "test 1.1.0: CVE-2026-0001",
+      "package": {
+        "name": "test",
+        "version": "1.1.0",
+        "ecosystem": "npm",
+        "path": "/private-project/package-lock.json",
+        "scope": "reachable-unknown",
+        "origin": "project"
+      },
+      "advisory": "CVE-2026-0001",
+      "aliases": [
+        "CVE-2026-0001",
+        "DEBIAN-test",
+        "DSA-test"
+      ],
+      "kev": true,
+      "epss": 0.1,
+      "severity": [],
+      "fixed": [
+        "2.0.0",
+        "2.1.0"
+      ],
+      "detail_status": "complete",
+      "source_url": [
+        "https://api.osv.dev/v1/vulns/DSA-test",
+        "https://api.osv.dev/v1/vulns/DEBIAN-test"
+      ],
+      "fetched_at": "2026-11-03T00:00:00Z",
+      "affected_ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.0.0"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "2.1.0"
+            }
+          ]
+        }
+      ],
+      "published": null,
+      "priority": {
+        "level": "critical",
+        "cvss": null,
+        "kev": true,
+        "epss": 0.1
+      }
+    }
+  ],
+  "covered": [
+    "9d40becea09b7e09305c827e",
+    "a97d6019daf97bd9792111b3"
+  ],
+  "errors": []
+}

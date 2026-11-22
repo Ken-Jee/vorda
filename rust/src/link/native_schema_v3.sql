@@ -1,0 +1,3 @@
+CREATE TABLE v2_changes(authority TEXT NOT NULL,ordinal INTEGER NOT NULL,received_real REAL,revision INTEGER NOT NULL,previous_revision INTEGER,late INTEGER NOT NULL,kind TEXT NOT NULL,reason TEXT NOT NULL,row BLOB NOT NULL,PRIMARY KEY(authority,ordinal));
+CREATE INDEX v2_changes_received ON v2_changes(received_real,authority,ordinal);
+CREATE TABLE v2_change_state(authority TEXT PRIMARY KEY,state BLOB NOT NULL)

@@ -1,0 +1,62 @@
+# vorda GitHub Action: scan the checked-out repo and write SARIF 2.1.0.
+# Pin it by full commit SHA, never by tag (in Mar 2026, 76 of 77 trivy-action tags were
+# rewritten to steal CI secrets; GHSA-69fq-xp46-6x23):
+#   - uses: Ken-Jee/vorda@<40-char commit sha>  # vX.Y.Z
+# The action runs the vorda source at that exact commit; it downloads no vorda code.
+# Every action it uses is pinned by SHA too. Inputs reach the shell only through env vars.
+name: vorda
+description: Scan lockfiles for known vulnerabilities (OSV, KEV, EPSS) and write SARIF for code scanning.
+author: Ken-Jee
+branding:
+  icon: shield
+  color: green
+inputs:
+  path:
+    description: Directory to scan (repeatable roots are space-separated)
+    default: .
+  sarif-file:
+    description: Where to write the SARIF report
+    default: vorda.sarif
+  upload:
+    description: Upload the SARIF to GitHub code scanning (needs security-events write; private repos need GitHub code security)
+    default: 'true'
+  advisories:
+    description: 'online (sends package names and versions to OSV.dev) or offline-db (needs a local database). Empty uses VORDA_ADVISORIES, else offline-db.'
+    default: ''
+  fail-on-findings:
+    description: Fail the step when known vulnerabilities are found or the scan is unknown
+    default: 'false'
+outputs:
+  status:
+    description: no-known-findings, vulnerable or unknown
+    value: ${{ steps.scan.outputs.status }}
+  findings:
+    description: Number of findings
+    value: ${{ steps.scan.outputs.findings }}
+  sarif-file:
+    description: Path of the SARIF report
+    value: ${{ inputs.sarif-file }}
+runs:
+  using: composite
+  steps:
+    - name: Build pinned native source
+      shell: bash
+      run: |
+        cd "$GITHUB_ACTION_PATH/rust"
+        rustup toolchain install 1.99.1 --profile minimal --no-self-update
+        cargo +1.99.1 build --locked --release --bin vorda --target-dir "$RUNNER_TEMP/vorda-native-target"
+    - id: scan
+      shell: bash
+      env:
+        VORDA_PATH: ${{ inputs.path }}
+        VORDA_SARIF: ${{ inputs.sarif-file }}
+        VORDA_FAIL: ${{ inputs.fail-on-findings }}
+        VORDA_ADVISORY_INPUT: ${{ inputs.advisories }}
+      run: '"$RUNNER_TEMP/vorda-native-target/release/vorda" action-scan'
+    # A vulnerable scan uploads even when it failed the step. An unknown scan is not
+    # uploaded: its SARIF would close open alerts it never checked.
+    - if: ${{ !cancelled() && inputs.upload == 'true' && steps.scan.outputs.status != '' && steps.scan.outputs.status != 'unknown' }}
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: vorda

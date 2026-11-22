@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: Ken-Jee.vorda
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: Ken-Jee
+PublisherUrl: https://github.com/Ken-Jee
+PackageName: vorda
+PackageUrl: @REPO_URL@
+License: MIT
+LicenseUrl: @REPO_URL@/blob/v@VERSION@/LICENSE
+ShortDescription: Local vulnerability mailbox for developers and AI agents.
+Description: Scans lockfiles, OS packages, browsers and agent tools for known vulnerabilities from OSV, KEV and EPSS, and keeps one private mailbox that people and AI agents read. No account, no telemetry.
+Tags:
+  - security
+  - vulnerability
+  - cve
+  - mcp
+  - sbom
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

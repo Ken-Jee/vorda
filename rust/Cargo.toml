@@ -1,0 +1,63 @@
+[workspace]
+members = ["."]
+resolver = "2"
+
+[package]
+name = "vorda"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+license = "MIT"
+description = "Local vulnerability mailbox for developers and agents"
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision", "preserve_order"] }
+sha2 = "0.10"
+minisign-verify = "0.3"
+rusqlite = { version = "0.41", features = ["bundled", "hooks", "fallible_uint"] }
+fs2 = "0.4"
+hmac = "0.12"
+uuid = { version = "1", features = ["v4"] }
+url = "2"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "native-tls"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+base64 = "0.22"
+regex = "1"
+libc = "0.2"
+tar = "0.4"
+flate2 = "1"
+bzip2 = "0.6"
+xz2 = "0.1"
+quick-xml = "0.42"
+toml = "0.8"
+zip = { version = "9", default-features = false, features = ["deflate"] }
+tempfile = "3"
+shell-words = "1"
+plist = "1"
+serde_norway = "0.9"
+# serde_norway's own parser, walked first to bound what it buffers.
+unsafe-libyaml-norway = "0.2.15"
+md-5 = "0.10"
+cvss = "2.2"
+
+# Static musl release builds compile OpenSSL in instead of linking the system copy.
+[target.'cfg(target_env = "musl")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+
+[profile.dev]
+debug = 0
+incremental = true
+
+[profile.test]
+debug = 0
+incremental = true
+
+[profile.release]
+debug = 0
+incremental = false
+strip = true
+
+[features]
+native-admission-test = []

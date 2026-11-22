@@ -1,0 +1,1 @@
+Fixture copied from https://git.launchpad.net/ubuntu-cve-tracker/plain/active/CVE-2025-9232 (fetched 2026-11-22 UTC); real CVE-2025-9232 with noble_openssl not-affected and resolute_openssl released (3.5.3-1ubuntu2).

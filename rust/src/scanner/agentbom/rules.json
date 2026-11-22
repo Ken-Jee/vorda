@@ -1,0 +1,420 @@
+{
+  "text": [
+    {
+      "rule": "AB-P1",
+      "severity": "high",
+      "contexts": [
+        "instructions",
+        "source"
+      ],
+      "pattern": "\\b(?:do\\s+not|don\\'t|never)\\s+(?:tell|inform|mention|reveal|notify|alert)\\s+(?:this\\s+to\\s+)?(?:the\\s+)?user",
+      "title": "Hides actions from the user",
+      "why": "Text an agent reads tells it to keep something from you, a hallmark of tool poisoning."
+    },
+    {
+      "rule": "AB-P2",
+      "severity": "high",
+      "contexts": [
+        "instructions",
+        "source"
+      ],
+      "pattern": "\\b(?:ignore|disregard|forget|override)\\s+(?:all\\s+|any\\s+)?(?:the\\s+)?(?:previous|prior|above|earlier|system|other)\\s+(?:instructions|prompts?|rules|messages)",
+      "title": "Overrides the agent's instructions",
+      "why": "Text an agent reads tries to replace the instructions you gave it."
+    },
+    {
+      "rule": "AB-P3",
+      "severity": "high",
+      "contexts": [
+        "instructions"
+      ],
+      "pattern": "\\b(?:send|post|upload|exfiltrate|forward|transmit|include)\\b[^\\n]{0,80}\\b(?:contents?|keys?|tokens?|credentials?|secrets?|passwords?|files?)\\b[^\\n]{0,80}(?:https?://|webhook|endpoint|as\\s+a?\\s*(?:parameter|argument))",
+      "title": "Asks the agent to send data out",
+      "why": "Text an agent reads asks it to pass secrets or files to a URL or tool argument."
+    },
+    {
+      "rule": "AB-P4",
+      "severity": "medium",
+      "contexts": [
+        "instructions"
+      ],
+      "pattern": "(?:~|\\$HOME|%USERPROFILE%)?[/\\\\]?\\.(?:ssh[/\\\\](?:id_[a-z0-9]+|authorized_keys)|aws[/\\\\]credentials|netrc|git-credentials|docker[/\\\\]config\\.json|kube[/\\\\]config|npmrc|pypirc)\\b|\\bid_rsa\\b|\\bwallet\\.dat\\b",
+      "title": "Points the agent at credential files",
+      "why": "Text an agent reads names SSH keys or cloud credential files."
+    },
+    {
+      "rule": "AB-P5",
+      "severity": "medium",
+      "contexts": [
+        "instructions"
+      ],
+      "pattern": "<\\s*(?:important|system|secret|hidden|instructions?|admin)\\s*>",
+      "title": "Hidden instruction block",
+      "why": "An <IMPORTANT>-style block is the pattern used to smuggle orders into tool descriptions."
+    },
+    {
+      "rule": "AB-P6",
+      "severity": "medium",
+      "contexts": [
+        "instructions"
+      ],
+      "pattern": "\\b(?:instead\\s+of|rather\\s+than)\\s+(?:using|calling)\\s+(?:the\\s+)?[\\w.-]+\\s+tool\\b|\\bwhen\\s+(?:the\\s+)?[\\w.-]+\\s+tool\\s+is\\s+(?:called|used|available)\\b[^\\n]{0,80}\\b(?:instead|always|must)\\b",
+      "title": "Shadows another tool",
+      "why": "Text redirects how the agent uses a different tool, a cross-server shadowing pattern."
+    },
+    {
+      "rule": "AB-P7",
+      "severity": "high",
+      "contexts": [
+        "instructions",
+        "shell"
+      ],
+      "pattern": "(?:curl|wget|iwr|Invoke-WebRequest|irm|Invoke-RestMethod)\\b[^|\\n]{0,200}\\|\\s*(?:sudo\\s+)?(?:ba|z|da|k)?sh\\b|(?:curl|wget|iwr|irm)\\b[^|\\n]{0,200}\\|\\s*(?:python3?|perl|ruby|node|iex|Invoke-Expression)\\b|\\b(?:ba)?sh\\s+-c\\s+[\"\\']?\\$\\((?:curl|wget)",
+      "title": "Downloads and runs code",
+      "why": "A hook or instruction pipes a download straight into a shell."
+    },
+    {
+      "rule": "AB-P8",
+      "severity": "medium",
+      "contexts": [
+        "instructions"
+      ],
+      "pattern": "--dangerously-skip-permissions|--yolo\\b|bypassPermissions|approval_policy\\s*=\\s*[\"\\']?never|--dangerously-bypass-approvals",
+      "title": "Turns off agent approvals",
+      "why": "Text an agent reads asks it to run without permission prompts."
+    }
+  ],
+  "secrets": [
+    {
+      "kind": "github-token",
+      "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{60,})"
+    },
+    {
+      "kind": "anthropic-key",
+      "pattern": "\\bsk-ant-[A-Za-z0-9_-]{20,}"
+    },
+    {
+      "kind": "openrouter-key",
+      "pattern": "\\bsk-or-v1-[A-Za-z0-9]{40,}"
+    },
+    {
+      "kind": "openai-key",
+      "pattern": "\\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{32,}"
+    },
+    {
+      "kind": "aws-access-key",
+      "pattern": "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b"
+    },
+    {
+      "kind": "slack-token",
+      "pattern": "\\bxox[abprs]-[A-Za-z0-9-]{10,}"
+    },
+    {
+      "kind": "slack-webhook",
+      "pattern": "https://hooks\\.slack\\.com/services/[A-Za-z0-9/]{20,}"
+    },
+    {
+      "kind": "discord-webhook",
+      "pattern": "https://(?:ptb\\.|canary\\.)?discord(?:app)?\\.com/api/webhooks/\\d+/[A-Za-z0-9_-]{20,}"
+    },
+    {
+      "kind": "google-api-key",
+      "pattern": "\\bAIza[0-9A-Za-z_-]{35}\\b"
+    },
+    {
+      "kind": "gitlab-token",
+      "pattern": "\\bglpat-[A-Za-z0-9_-]{20,}"
+    },
+    {
+      "kind": "huggingface-token",
+      "pattern": "\\bhf_[A-Za-z0-9]{30,}"
+    },
+    {
+      "kind": "npm-token",
+      "pattern": "\\bnpm_[A-Za-z0-9]{36}\\b"
+    },
+    {
+      "kind": "stripe-key",
+      "pattern": "\\b[sr]k_live_[A-Za-z0-9]{20,}"
+    },
+    {
+      "kind": "telegram-bot-token",
+      "pattern": "\\b\\d{8,10}:AA[A-Za-z0-9_-]{33}\\b"
+    },
+    {
+      "kind": "private-key",
+      "pattern": "-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----"
+    },
+    {
+      "kind": "bearer-token",
+      "pattern": "\\bBearer\\s+[A-Za-z0-9._~+/-]{24,}=*"
+    },
+    {
+      "kind": "url-password",
+      "pattern": "\\b[a-z][a-z0-9+.-]{0,30}://[^/\\s:@\"\\']{0,100}:([^/\\s@\"\\']{6,200})@"
+    }
+  ],
+  "loose": [
+    "(?i)(?:[\\w.-]{0,40}(?:token|secret|passw(?:or)?d?|pwd|api[_-]?key|apikey|auth|credential|access[_-]?key|private[_-]?key|sig|signature)\\w{0,20})[\"\\']?\\s*[=:]\\s*[\"\\']?([^\\s&\"\\',;}{]{4,})",
+    "(?i)--?[\\w-]{0,40}(?:token|secret|passw(?:or)?d?|api-?key|apikey|auth|credential|key)(?:\\s+|=)[\"\\']?([^\\s\"\\'-][^\\s\"\\']{3,})",
+    "://[^/\\s:@\"\\']{0,100}:([^/\\s@\"\\']{1,200})@",
+    "(?:^|\\s)(?:-u|--user)[\\s=]+[\"\\']?[^\\s:\"\\']{0,100}:([^\\s\"\\']{1,200})",
+    "(?i)\\b(?:basic|token|bearer)\\s+([A-Za-z0-9._~+/=-]{8,})",
+    "(?:^|\\s)(?:sshpass\\s+)?-p\\s?([^\\s\"\\'-][^\\s\"\\']{3,})",
+    "(?i)(?:key|token|secret|pass\\w{0,10}|auth)%3D([^&\\s]{4,})"
+  ],
+  "vocab": [
+    "a",
+    "above",
+    "admin",
+    "after",
+    "alert",
+    "all",
+    "always",
+    "and",
+    "any",
+    "approval",
+    "approvals",
+    "are",
+    "argument",
+    "as",
+    "authorized",
+    "available",
+    "aws",
+    "ba",
+    "bash",
+    "be",
+    "before",
+    "bid",
+    "bwallet",
+    "bwhen",
+    "bypass",
+    "bypasspermissions",
+    "call",
+    "called",
+    "calling",
+    "claude",
+    "codex",
+    "config",
+    "contents",
+    "credentials",
+    "curl",
+    "da",
+    "dangerously",
+    "dat",
+    "disregard",
+    "do",
+    "docker",
+    "don",
+    "earlier",
+    "endpoint",
+    "exfiltrate",
+    "expression",
+    "files",
+    "first",
+    "flag",
+    "flags",
+    "for",
+    "forget",
+    "forward",
+    "git",
+    "hidden",
+    "home",
+    "https",
+    "i",
+    "id",
+    "iex",
+    "ignore",
+    "important",
+    "in",
+    "include",
+    "inform",
+    "instead",
+    "instructions",
+    "invoke",
+    "irm",
+    "is",
+    "it",
+    "its",
+    "iwr",
+    "json",
+    "keys",
+    "kube",
+    "me",
+    "mention",
+    "messages",
+    "mode",
+    "must",
+    "my",
+    "netrc",
+    "never",
+    "node",
+    "not",
+    "note",
+    "notify",
+    "now",
+    "npmrc",
+    "of",
+    "on",
+    "or",
+    "other",
+    "override",
+    "parameter",
+    "passwords",
+    "perl",
+    "permissions",
+    "policy",
+    "post",
+    "previous",
+    "prior",
+    "prompts",
+    "pypirc",
+    "python",
+    "rather",
+    "read",
+    "restmethod",
+    "reveal",
+    "rsa",
+    "ruby",
+    "rules",
+    "run",
+    "sandbox",
+    "secret",
+    "secrets",
+    "send",
+    "sh",
+    "skip",
+    "ssh",
+    "sudo",
+    "system",
+    "tell",
+    "than",
+    "that",
+    "the",
+    "then",
+    "this",
+    "to",
+    "tokens",
+    "tool",
+    "tools",
+    "transmit",
+    "upload",
+    "use",
+    "used",
+    "user",
+    "userprofile",
+    "using",
+    "webhook",
+    "webrequest",
+    "wget",
+    "with",
+    "yolo",
+    "you",
+    "your"
+  ],
+  "dangerous_pairs": [
+    [
+      "dill",
+      "loads"
+    ],
+    [
+      "joblib",
+      "load"
+    ],
+    [
+      "numpy",
+      "load"
+    ],
+    [
+      "numpy.lib.npyio",
+      "load"
+    ],
+    [
+      "torch",
+      "load"
+    ],
+    [
+      "torch.serialization",
+      "load"
+    ]
+  ],
+  "dangerous_globals": [
+    "_io",
+    "_pickle",
+    "asyncio",
+    "bdb",
+    "cProfile",
+    "code",
+    "commands",
+    "ctypes",
+    "functools",
+    "http.client",
+    "httplib",
+    "importlib",
+    "io",
+    "marshal",
+    "multiprocessing",
+    "nt",
+    "numpy.f2py",
+    "numpy.testing",
+    "operator",
+    "os",
+    "pathlib",
+    "pdb",
+    "pickle",
+    "pip",
+    "posix",
+    "profile",
+    "pty",
+    "requests",
+    "runpy",
+    "setuptools",
+    "shutil",
+    "socket",
+    "subprocess",
+    "sys",
+    "tempfile",
+    "timeit",
+    "torch.hub",
+    "torch.utils.cpp_extension",
+    "trace",
+    "types",
+    "urllib",
+    "urllib.request",
+    "webbrowser"
+  ],
+  "dangerous_builtins": [
+    "__import__",
+    "apply",
+    "breakpoint",
+    "compile",
+    "delattr",
+    "eval",
+    "exec",
+    "getattr",
+    "globals",
+    "input",
+    "locals",
+    "open",
+    "setattr"
+  ],
+  "never_data": [
+    "__builtin__",
+    "bdb",
+    "builtins",
+    "commands",
+    "ctypes",
+    "importlib",
+    "nt",
+    "os",
+    "pdb",
+    "posix",
+    "pty",
+    "runpy",
+    "shutil",
+    "socket",
+    "subprocess",
+    "timeit",
+    "webbrowser"
+  ]
+}

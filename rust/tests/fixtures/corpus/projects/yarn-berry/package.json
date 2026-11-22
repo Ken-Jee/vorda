@@ -1,0 +1,9 @@
+{
+ "name": "yarn-berry",
+ "version": "1.0.0",
+ "dependencies": {
+  "@babel/traverse": "7.23.0",
+  "lodash": "4.17.20",
+  "minimist": "0.0.8"
+ }
+}

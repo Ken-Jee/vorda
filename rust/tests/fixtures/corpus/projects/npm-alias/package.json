@@ -1,0 +1,8 @@
+{
+ "name": "npm-alias",
+ "version": "1.0.0",
+ "dependencies": {
+  "lodash-old": "npm:lodash@4.17.20",
+  "@babel/traverse": "7.23.0"
+ }
+}

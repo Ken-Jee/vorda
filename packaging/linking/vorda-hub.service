@@ -1,0 +1,13 @@
+[Unit]
+Description=Vorda result ingestion
+
+[Service]
+ExecStart="%h/.local/bin/vorda" link --db "%h/.local/state/vorda/hub.db" serve --bind 0.0.0.0 --cert "%h/.config/vorda/hub.crt" --key "%h/.config/vorda/hub.key"
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

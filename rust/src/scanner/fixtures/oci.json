@@ -1,0 +1,110 @@
+{
+  "normal": {
+    "packages": [
+      {
+        "name": "busybox",
+        "version": "1.36.1-r1",
+        "ecosystem": "Alpine:v3.18",
+        "path": "normal.tar.gz",
+        "scope": "reachable-unknown",
+        "origin": "image",
+        "source_name": "busybox"
+      }
+    ],
+    "coverage": [
+      {
+        "format": "apk",
+        "status": "complete"
+      }
+    ],
+    "errors": [],
+    "status": "complete",
+    "source": "normal.tar.gz",
+    "image": {
+      "name": null,
+      "distro": "alpine 3.18",
+      "ecosystem": "Alpine:v3.18"
+    }
+  },
+  "compressed": {
+    "packages": [
+      {
+        "name": "busybox",
+        "version": "1.36.1-r1",
+        "ecosystem": "Alpine:v3.18",
+        "path": "compressed.tar.gz",
+        "scope": "reachable-unknown",
+        "origin": "image",
+        "source_name": "busybox"
+      }
+    ],
+    "coverage": [
+      {
+        "format": "apk",
+        "status": "complete"
+      }
+    ],
+    "errors": [],
+    "status": "complete",
+    "source": "compressed.tar.gz",
+    "image": {
+      "name": null,
+      "distro": "alpine 3.18",
+      "ecosystem": "Alpine:v3.18"
+    }
+  },
+  "whiteout": {
+    "packages": [],
+    "coverage": [],
+    "errors": [],
+    "status": "unknown",
+    "source": "whiteout.tar.gz",
+    "image": {
+      "name": null,
+      "distro": "alpine 3.18",
+      "ecosystem": null
+    }
+  },
+  "opaque": {
+    "packages": [],
+    "coverage": [],
+    "errors": [],
+    "status": "unknown",
+    "source": "opaque.tar.gz",
+    "image": {
+      "name": null,
+      "distro": null,
+      "ecosystem": null
+    }
+  },
+  "traversal": {
+    "packages": [],
+    "coverage": [],
+    "errors": [
+      "archive path is unsafe"
+    ],
+    "status": "unknown",
+    "source": "traversal.tar.gz",
+    "image": null
+  },
+  "digest": {
+    "packages": [],
+    "coverage": [],
+    "errors": [
+      "blob digest does not match"
+    ],
+    "status": "unknown",
+    "source": "digest.tar.gz",
+    "image": null
+  },
+  "multiple": {
+    "packages": [],
+    "coverage": [],
+    "errors": [
+      "select a single-image OCI archive"
+    ],
+    "status": "unknown",
+    "source": "multiple.tar.gz",
+    "image": null
+  }
+}

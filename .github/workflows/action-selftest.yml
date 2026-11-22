@@ -1,0 +1,81 @@
+# Runs the repo's own action.yml against a known-vulnerable fixture and checks the SARIF.
+name: action-selftest
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  selftest:
+    runs-on: ${{ vars.VORDA_LINUX_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - id: vorda
+        uses: ./
+        with:
+          path: tests/fixtures
+          upload: 'false'
+          advisories: online
+      - name: Check outputs and SARIF
+        env:
+          STATUS: ${{ steps.vorda.outputs.status }}
+          FINDINGS: ${{ steps.vorda.outputs.findings }}
+        run: |
+          echo "status=$STATUS findings=$FINDINGS"
+          test "$STATUS" = vulnerable
+          jq -e '.version == "2.1.0" and (.runs[0].results | length > 0)' vorda.sarif
+      - name: Make a project vorda cannot read
+        run: |
+          mkdir -p "$RUNNER_TEMP/unreadable"
+          echo '<project/>' > "$RUNNER_TEMP/unreadable/pom.xml"
+      - id: unknown
+        uses: ./
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/unreadable
+          sarif-file: unknown.sarif
+          upload: 'false'
+          fail-on-findings: 'true'
+          advisories: online
+      - name: Check an unknown scan fails the step
+        env:
+          OUTCOME: ${{ steps.unknown.outcome }}
+          STATUS: ${{ steps.unknown.outputs.status }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$STATUS" = unknown
+          test -f unknown.sarif
+      # The default offline mode with no database: unknown, no upload, and the step still fails.
+      - id: nodb
+        uses: ./
+        continue-on-error: true
+        env:
+          VORDA_ADVISORY_DB_DIR: ${{ runner.temp }}/no-advisory-db
+        with:
+          path: tests/fixtures
+          sarif-file: nodb.sarif
+          upload: 'false'
+      - name: Check a scan with no database reports unknown
+        env:
+          OUTCOME: ${{ steps.nodb.outcome }}
+          STATUS: ${{ steps.nodb.outputs.status }}
+          FINDINGS: ${{ steps.nodb.outputs.findings }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$STATUS" = unknown
+          test "$FINDINGS" = 0
+          jq -e '.runs[0].results == []' nodb.sarif
+      - name: Run product and release tests
+        run: |
+          # Repair tests intentionally refuse executable Git filters.
+          if git config --global --get-regexp '^filter\.lfs\.'; then
+            git config --global --remove-section filter.lfs
+          fi
+          if git config --system --get-regexp '^filter\.lfs\.'; then
+            sudo git config --system --remove-section filter.lfs
+          fi
+          git config --global user.name Fixture
+          git config --global user.email fixture@example.invalid
+          cd rust
+          cargo +1.99.1 test --locked --release --target-dir "$RUNNER_TEMP/vorda-native-target"

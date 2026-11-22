@@ -1,0 +1,122 @@
+{
+  "Cargo.lock": [
+    {
+      "name": "time",
+      "version": "0.1.44",
+      "ecosystem": "crates.io",
+      "path": "Cargo.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "Gemfile.lock": [
+    {
+      "name": "rack",
+      "version": "2.0.0",
+      "ecosystem": "RubyGems",
+      "path": "Gemfile.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "Pipfile.lock": [
+    {
+      "name": "django",
+      "version": "2.2.0",
+      "ecosystem": "PyPI",
+      "path": "Pipfile.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "bun.lock": [
+    {
+      "name": "lodash",
+      "version": "4.17.20",
+      "ecosystem": "npm",
+      "path": "bun.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "composer.lock": [
+    {
+      "name": "symfony/http-foundation",
+      "version": "2.7.0",
+      "ecosystem": "Packagist",
+      "path": "composer.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "go.sum": [
+    {
+      "name": "golang.org/x/crypto",
+      "version": "v0.0.0-20200128174031-69ecbb4d6d5d",
+      "ecosystem": "Go",
+      "path": "go.sum",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "package-lock.json": [
+    {
+      "name": "lodash",
+      "version": "4.17.20",
+      "ecosystem": "npm",
+      "path": "package-lock.json",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "pnpm-lock.yaml": [
+    {
+      "name": "lodash",
+      "version": "4.17.20",
+      "ecosystem": "npm",
+      "path": "pnpm-lock.yaml",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "poetry.lock": [
+    {
+      "name": "django",
+      "version": "2.2.0",
+      "ecosystem": "PyPI",
+      "path": "poetry.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "requirements.txt": [
+    {
+      "name": "django",
+      "version": "2.2.0",
+      "ecosystem": "PyPI",
+      "path": "requirements.txt",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "uv.lock": [
+    {
+      "name": "django",
+      "version": "2.2.0",
+      "ecosystem": "PyPI",
+      "path": "uv.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ],
+  "yarn.lock": [
+    {
+      "name": "lodash",
+      "version": "4.17.20",
+      "ecosystem": "npm",
+      "path": "yarn.lock",
+      "scope": "likely-dev-only",
+      "origin": "project"
+    }
+  ]
+}
