@@ -322,7 +322,7 @@ pub fn collect(roots: &[PathBuf], cache: Option<&Path>) -> (Vec<Value>, Vec<Stri
                 "Google/Chrome/Application/chrome.exe",
                 "Chromium/Application/chrome.exe",
             ] {
-                let exe = PathBuf::from(&base).join(rel);
+                let exe = rel.split('/').fold(PathBuf::from(&base), |p, c| p.join(c));
                 if exe.is_file() {
                     let v =
                         version(exe.parent().unwrap(), &exe).unwrap_or_else(|_| "unknown".into());
@@ -558,7 +558,8 @@ pub fn advisories(
     }
     let live = !fetch.offline() && !cves.is_empty() && super::now() - nvd_at <= 86400.0;
     if fetch.offline() {
-        errors.push(json!({"source":"nvd","error":"offline mode: no live data fetched"}));
+        // Like the other network-only feeds: not assessed, not a failure.
+        errors.push(json!({"source":"nvd","not_assessed":true,"error":format!("{}: https://services.nvd.nist.gov/rest/json/cves/2.0", super::osvdb::NEEDS_NETWORK)}));
     } else if !live {
         let result = fetch_nvd(fetch);
         match result {
@@ -586,10 +587,11 @@ pub fn advisories(
     if nvd_at > 0.0 {
         sources.push(json!({"source_url":"https://services.nvd.nist.gov/rest/json/cves/2.0","fetched_at":fetched_at}));
     }
-    errors.push(json!({"source":"nvd","coverage":"limited-history","error":"Chrome data covers only the latest 119 publication days; older applicability is unknown"}));
+    // By design, never a failure: listed as not assessed (see feeds::scan).
+    errors.push(json!({"source":"nvd","coverage":"limited-history","not_assessed":true,"error":"Chrome data covers only the latest 119 publication days; older applicability is unknown"}));
     for p in packages {
         if p.version == "unknown" || tuple(&p.version).is_none() {
-            errors.push(json!({"source":"chromium","error":format!("{}: no trusted version evidence",p.path)}));
+            errors.push(json!({"source":"chromium","not_assessed":true,"package":p.path,"error":"no trusted version evidence"}));
             continue;
         }
         let os = if cfg!(windows) {
@@ -638,7 +640,7 @@ pub fn advisories(
             }
         }
         if applicable.is_empty() {
-            errors.push(json!({"source":"chromium","error":format!("{}: unknown outside limited history",p.path)}));
+            errors.push(json!({"source":"chromium","not_assessed":true,"package":p.path,"error":"unknown outside limited history"}));
         } else {
             for c in applicable {
                 let cid = string(c, "id");

@@ -1,0 +1,2 @@
+# Fixture finding id, not a secret (see rust/src/scanner/fixtures/README.md).
+rust/src/scanner/fixtures/feeds.json:generic-api-key:68

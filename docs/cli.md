@@ -6,8 +6,10 @@ Each block below is Vorda's own help text (`vorda --help`, `vorda COMMAND --help
 Usage: vorda [--state DIR] COMMAND [options]
        vorda help [COMMAND] | vorda COMMAND --help | vorda --version
 
+To start, run vorda setup to choose offline or online advisories and scan this machine. You can also run vorda scan for this machine or vorda scan PATH for one project (run vorda help scan to see its options).
+
 Check:
-  scan          Check lockfiles and pinned requirements (and, if asked, OS packages, tools, browsers, apps, images) for known vulnerabilities
+  scan          Check this machine (OS packages, tools, browsers, apps, home projects) or named paths or images for vulnerabilities
   check         Same as scan
   inventory     List the packages a scan would check, without looking up advisories
   db            Download or show the offline advisory database that scan uses by default (same as --offline-db)
@@ -17,6 +19,7 @@ Read results:
   dashboard     Serve the local web dashboard of saved scans
   mcp           Run the MCP server that lets coding agents scan and read the mailbox
 Set up:
+  setup         Choose offline or online advisories, optionally schedule scans, and scan this machine
   connect       Add Vorda to an agent client's config
   snippet       Print agent setup snippets
   hook          Print the agent session hook output
@@ -32,6 +35,7 @@ Fleet:
   hub-mcp       Run the MCP server that reads a hub
   snapshot-read Read a saved snapshot (trusted local input)
 Other:
+  update        Update this executable from a signed release
   verify-self   Verify this executable's signature
   licenses      Print third-party licenses
   version       Print the version
@@ -41,21 +45,51 @@ Scan exits: 0 = no known findings, 3 = vulnerable, 2 = unknown/incomplete or ope
 
 Put `--state DIR` before the command (`VORDA_HOME` sets its default). `vorda --version`, `-V`, and `vorda version` print the version. `vorda help COMMAND` matches `vorda COMMAND --help`. A test verifies every block here against the executable.
 
+## vorda setup
+
+Guided first-time setup: pick and save an advisory mode (`offline-db` or `online`) in `config.json`, download the local database when offline, optionally install scheduled machine scans, and run the first scan of this machine. Run `vorda setup` again anytime to change the saved mode.
+
+Running bare `vorda` with no arguments in a terminal (when stdin, stdout and stderr are all terminals, `CI` and `GITHUB_ACTIONS` are unset, and neither `config.json` nor `VORDA_ADVISORIES` has set a mode yet) starts `vorda setup` automatically. Otherwise bare `vorda` prints the main help, and `vorda --help`, `vorda -h`, and `vorda help` always print help.
+
+```text
+Usage: vorda setup [--offline-db | --online] [--watch | --no-watch]
+
+Choose offline or online advisories, save the choice to config.json, download the local database when offline, optionally install scheduled machine scans, and run the first scan of this machine.
+
+  --offline-db  Use the local advisory database (default in a terminal; downloads OSV exports for npm, PyPI, crates.io and Go plus the CISA KEV list to ~/.cache/vorda/advisory-db, 25 to 80 seconds and about 190 MB; package names never leave this machine; other ecosystems and network-only feeds are listed as not assessed)
+  --online      Send package names and versions to OSV.dev on each scan and also check the feeds the offline database lacks
+  --watch       Install scheduled hourly and daily machine scans (vorda watch install --machine) without prompting
+  --no-watch    Skip scheduled machine scans without prompting
+
+In a terminal without a mode flag, setup prompts for 1 (offline, default on Enter) or 2 (online); any other answer exits 64 without saving. Outside a terminal or in CI, pass --offline-db or --online or setup exits 64 without saving.
+
+The choice is saved as "advisories": "offline-db" or "advisories": "online" in config.json in the state folder (keeping any other keys) and applies to later vorda scan, vorda check, vorda watch install and MCP check runs. Single-scan --online or --offline-db flags still win for that scan, and VORDA_ADVISORIES wins over config.json (setup prints a note if it is set to the other mode). Run vorda setup again anytime to change the saved choice.
+
+In offline mode, setup runs vorda db update. If the download fails or any line is not updated, setup stops with exit 2 without scanning; the choice stays saved so you can run vorda db update and then vorda scan.
+
+Without --watch or --no-watch, setup asks in a terminal whether to install scheduled hourly and daily machine scans via systemd, cron, launchd or Windows Task Scheduler (default no; only y or yes installs), and skips them outside a terminal. Scheduled offline scans do not refresh the local advisory database: run vorda db update daily (for example from your own scheduler), or scans go unknown once the database is more than 72 hours old.
+
+Last, setup runs vorda scan on this machine (OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under home), prints a reminder to run vorda dashboard, and exits with the scan's exit code (0 no known findings, 3 vulnerable, 2 unknown). Running bare vorda with no arguments in a terminal (outside CI) before any mode is set in config.json or VORDA_ADVISORIES starts setup automatically; vorda --help, -h and help always print help.
+```
+
 ## vorda scan and vorda check
 
 `check` is the same command as `scan`.
 
 ```text
-Usage: vorda scan [--root DIR] [--os-packages] [--tools] [--browsers] [--installed-apps] [--installed-root PATH] [--oci ARCHIVE] [--offline | --offline-db | --online] [--scheduled] [--inventory-file FILE] [--webhook URL] [--ntfy URL] [--desktop] [--json]
+Usage: vorda scan [PATH ...] [--root DIR] [--os-packages] [--tools] [--browsers] [--installed-apps] [--installed-root PATH] [--oci ARCHIVE] [--exclude PATH] [--offline | --offline-db | --online] [--scheduled] [--inventory-file FILE] [--webhook URL] [--ntfy URL] [--desktop] [--json]
 
---root DIR is a folder or lockfile to scan (repeat it for more; default: the current folder).
+With no PATH, --root, --inventory-file, or --oci, scans this machine: OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under your home folder (skipping caches, toolchains, downloads, app data, and trash). Pass one or more PATH arguments to scan only those folders or lockfiles; a bare PATH works like --root DIR.
 Prints a short summary; --json prints the full machine-readable result.
 --offline makes no network request and reads no advisories: it lists the packages found, and the result is always unknown (exit 2). For a complete check without network, use --offline-db.
 Manual scan and check commands default to the local offline advisory database (--offline-db). Use --online to query OSV.dev for one scan, --offline-db to use the local database, or --offline for an inventory-only scan that always reports unknown (distinct from --offline-db). Mode precedence is CLI flags, then VORDA_ADVISORIES, then config.json (advisories), then the --offline-db default. If no local advisory indexes exist yet, an interactive terminal prompts to download the database or scan online once; noninteractive runs exit 2 (unknown) with no automatic network fallback.
 
+--exclude PATH  Leave a folder or file under a root out of the scan on purpose (repeatable). Excluded paths appear in the summary and JSON "excluded" field and are not checked, so the result says nothing about them. Scans with --exclude are saved separately from full scans and never close findings a full scan saved.
+
 --os-packages on Ubuntu (host or --oci image) is experimental: OSV-decided findings miss Canonical's not-affected or won't-fix status, causing false alarms; kernel-header packages (linux-libc-dev) add many findings; a scan can end unknown when a Canonical record has no entry for this release.
 ```
 
+- `--exclude PATH`: leave a folder or file under a scan root out on purpose (repeatable). Excluded paths are listed in the summary and the JSON `excluded` field and are not checked, so the result says nothing about them. A scan with `--exclude` is saved separately from a full scan, so it never closes findings a full scan saved.
 - `--oci ARCHIVE`: inventory or scan one local OCI archive without executing it.
 - `--scheduled`: keep missing tool lookups unknown in unattended scans.
 - `--inventory-file FILE`: scan a saved read-only JSON package inventory.
@@ -74,11 +108,11 @@ See [reference.md](reference.md#run) for what the summary shows.
 
 ### First-use setup
 
-Setup runs only when no local advisory indexes exist. It prompts only for a scan run in a terminal without `--json` or `--scheduled`: (1) download the offline advisory database (about 80 seconds; package names stay local), (2) scan online once (sends package names and versions to OSV.dev), or Enter to cancel. A stale database or missing ecosystem skips setup and reports those targets unknown.
+Run `vorda setup` (or bare `vorda` in a terminal on first run) to choose offline or online advisories and save that choice in `config.json` for later scans. If you run `vorda scan` directly in a terminal without `--json` or `--scheduled` and no local advisory indexes exist yet, the scan-time prompt still runs: (1) download the offline advisory database (25 to 80 seconds, about 190 MB; package names stay local), (2) scan online once (sends package names and versions to OSV.dev), or Enter to cancel. A stale database or missing ecosystem skips the prompt and reports those targets unknown.
 
 ### Offline coverage
 
-Offline mode checks npm, PyPI, crates.io and Go packages regardless of inventory source. Other ecosystems or network-only feeds report `unknown`.
+Offline mode checks npm, PyPI, crates.io, and Go packages regardless of inventory source. Other ecosystems and network-only feeds are listed in `not_assessed` instead of `errors`, so they do not make a scan `unknown` on their own. They set `coverage_evidence.status` to `partial`; pass `--online` to check them. Missing or stale indexes for those four ecosystems still report errors (`unknown`).
 
 ### Noninteractive, CI, and GitHub Action
 
@@ -126,7 +160,7 @@ Serve the local web dashboard of saved scans and print its URL.
 
   --bind ADDRESS     IP address or localhost (default 127.0.0.1); beyond loopback needs --token
   --port PORT        Port to listen on (default 7780; 0 picks a free port)
-  --token            Require a login token (VORDA_DASHBOARD_TOKEN or random); carried in the URL
+  --token            Require login token (VORDA_DASHBOARD_TOKEN; random if unset and in URL on terminals only)
   --allow-writes     Turn on review, repair, publish and mode controls (also turns on --token)
   --fix-config FILE  Fix engine config (policy, fleet file, machine)
 
@@ -162,9 +196,11 @@ Print a setup snippet to paste. Each uses this executable's full path and state 
 ## vorda watch
 
 ```text
-Usage: vorda watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online]
+Usage: vorda watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--machine | --root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online]
 
---offline-db schedules scans against the local advisory database with no network fallback. Scheduled jobs never refresh the database automatically; run `vorda db update` daily before scheduled scans (default max age 72 hours, adjustable via VORDA_ADVISORY_DB_MAX_AGE_HOURS). Missing or stale databases record unknown health messages (exit 2).
+With no --root, scheduled scans check this machine (unless an earlier install saved a root). Pass --root DIR to schedule a project scan; later installs remember it until you pass --machine to switch back.
+Note: scheduled scans do not update the local advisory database. Schedule `vorda db update` yourself (for example daily); a missing database or one older than 72 hours (VORDA_ADVISORY_DB_MAX_AGE_HOURS changes this) makes each scheduled scan record unknown (exit 2), with no network fallback.
+--offline-db schedules scans against the local advisory database with no network fallback.
 --online schedules scans that explicitly send package names and versions to OSV.dev.
 The chosen mode is saved in watch.json and passed explicitly to every backend's scan command (passing both is rejected). Without either flag, scheduled scans follow the config, environment, or CLI advisory default.
 ```
@@ -305,6 +341,25 @@ Trusted-local snapshot, grant and as-of inputs; no authentication, collection or
 ```
 
 Wrong argument counts exit 64 with `{"error": MESSAGE, "status": "usage_error"}` on stderr and nothing on stdout; other refusals exit 2 with `{ "error": TAG, "data": null }` on stdout. See [saved-snapshot-reader.md](saved-snapshot-reader.md).
+
+## vorda update
+
+Updates this Vorda executable from an official signed GitHub release (`https://github.com/Ken-Jee/vorda/releases`) and, when offline mode is saved (`VORDA_ADVISORIES=offline-db` or `"advisories": "offline-db"` in `config.json`), refreshes the offline advisory database with `vorda db update`.
+
+Only releases signed by the release key built into the running executable are accepted, and the previous executable is kept as `vorda.old` (`vorda.exe.old` on Windows). See [install.md#update](install.md#update) for the trust model, rollback behavior, and how to replace unsigned releases (`v0.1.0` and `v0.1.1`).
+
+```text
+Usage: vorda update [--check] [--version VERSION]
+
+Download and install a signed release from https://github.com/Ken-Jee/vorda/releases. Vorda fetches SHA256SUMS and SHA256SUMS.minisig, checks the signature against the release public key built into this executable (key ID 57E5204A70E3811B; no key file, URL or environment variable can change which key is trusted), selects this platform's build (static musl on Linux), downloads the executable, verifies its SHA-256 against the signed list, and verifies the executable's own .minisig signature with the same built-in key.
+
+The new executable is written beside the current one and renamed into place, keeping the previous executable as vorda.old (vorda.exe.old on Windows) and saving the release signature as vorda.minisig so vorda verify-self verifies it afterwards. Vorda then runs the new executable with --version and restores the previous executable if that check fails. When offline mode is saved (VORDA_ADVISORIES=offline-db or "advisories": "offline-db" in config.json), update also runs vorda db update with the new executable (including when already up to date), unless --check is set.
+
+  --check            Report whether a newer signed release is available without changing anything or refreshing the offline advisory database
+  --version VERSION  Install a specific release (for example 0.2.0 or v0.2.0), even if it is older than the running version; without this flag, only a newer release is installed
+
+Package-manager installs, development builds without a built-in release key, and unsigned releases (such as v0.1.0 and v0.1.1) are refused without changing anything. Exits 0 when updated, already up to date or after --check (or with vorda db update's exit code when refreshing the offline advisory database), 2 on errors or rollback, and 64 on usage errors.
+```
 
 ## vorda verify-self
 

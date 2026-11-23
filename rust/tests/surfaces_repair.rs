@@ -66,9 +66,9 @@ fn dashboard_requires_login_and_csrf_and_keeps_feed_html_inert() {
         .unwrap();
     let app = App::new(temp.path(), "127.0.0.1", 7780, "secret".into(), true, None).unwrap();
     assert_eq!(app.handle(&request("GET", "/", None, "")).status, 403);
-    let login = app.handle(&request("GET", "/hosts?token=secret", None, ""));
+    let login = app.handle(&request("GET", "/inventory?token=secret", None, ""));
     assert_eq!(login.status, 303);
-    assert_eq!(login.headers["Location"], "/hosts");
+    assert_eq!(login.headers["Location"], "/inventory");
     assert!(!login.headers["Set-Cookie"].contains("secret"));
     for target in [
         "/\\evil.example?token=secret",
@@ -81,15 +81,11 @@ fn dashboard_requires_login_and_csrf_and_keeps_feed_html_inert() {
     let cookie = login.headers["Set-Cookie"].split(';').next().unwrap();
     for path in [
         "/",
-        "/hosts",
         "/findings",
-        "/fixes",
-        "/agents",
-        "/speed",
-        "/news",
-        "/mailbox",
-        "/modes",
-        "/more",
+        "/inventory",
+        "/inbox",
+        "/repairs",
+        "/policy",
     ] {
         let response = app.handle(&request("GET", path, Some(cookie), ""));
         assert_eq!(response.status, 200, "{path}");
@@ -280,18 +276,14 @@ fn scope_selected_dashboard_excludes_unrelated_inventory_and_advisories() {
     let url = vorda::scanner::feeds::KEV;
     fs::write(cache.join(format!("{}.json",vorda::store::identity(&json!([url,null])).unwrap())),json!({"checked":vorda::store::now(),"data":{"vulnerabilities":[{"cveID":"SELECTED","vulnerabilityName":"SELECTED public update","dateAdded":"2026-11-04"},{"cveID":"GENERAL","vulnerabilityName":"General public update","dateAdded":"2026-11-03"}]}}).to_string()).unwrap();
     let app = App::new(temp.path(), "127.0.0.1", 7780, String::new(), false, None).unwrap();
-    for path in [
-        "/findings?scope=selected",
-        "/news?scope=selected",
-        "/api/assets?scope=selected",
-    ] {
+    for path in ["/findings?scope=selected", "/api/assets?scope=selected"] {
         let response = app.handle(&request("GET", path, None, ""));
         assert_eq!(response.status, 200);
         let body = String::from_utf8(response.body).unwrap();
         assert!(body.contains("SELECTED"), "{path}: {body}");
         assert!(!body.contains("UNRELATED_SENTINEL"), "{path}");
         if path.starts_with("/findings") {
-            assert!(body.contains("href=\"/news?scope=selected\""));
+            assert!(body.contains("href=\"/inbox?scope=selected\""));
         }
     }
     assert_eq!(store.active().unwrap().len(), 2);
@@ -872,4 +864,108 @@ fn session_hook_keeps_non_ascii_names_readable_and_line_separator_titles_on_one_
     assert!(data.contains(&"- \"caf\u{e9} \u{2713}\""), "{text}");
     assert!(data.contains(&"- \"line\u{2028}sep\""), "{text}");
     assert_eq!(lines[5], "```");
+}
+
+fn page(app: &App, path: &str) -> String {
+    let response = app.handle(&request("GET", path, None, ""));
+    assert_eq!(response.status, 200, "{path}");
+    String::from_utf8(response.body).unwrap()
+}
+
+#[test]
+fn inbox_follows_the_one_reader_and_drops_acknowledged_messages() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut store = Store::open(temp.path()).unwrap();
+    let finding = |cve: &str| {
+        json!({"key":cve,"asset":cve,"host":"box","title":format!("lodash 4.17.20: {cve}"),
+            "package":{"name":"lodash","version":"4.17.20","path":"/p/package-lock.json","ecosystem":"npm"},
+            "advisory":cve,"fixed":["4.18.0"],"priority":{"level":"high"}})
+        .as_object()
+        .unwrap()
+        .clone()
+    };
+    let zero = serde_json::Number::from(0);
+    store
+        .reconcile(&[finding("CVE-1")], &Default::default(), &[])
+        .unwrap();
+    store.mail("me", "read", &zero, &zero).unwrap();
+    store
+        .reconcile(
+            &[finding("CVE-1"), finding("CVE-2")],
+            &Default::default(),
+            &[],
+        )
+        .unwrap();
+    let app = App::new(temp.path(), "127.0.0.1", 7780, String::new(), false, None).unwrap();
+    let inbox = page(&app, "/inbox");
+    assert!(inbox.contains("Reader: me · 2 open"), "{inbox}");
+    assert!(inbox.contains("Serious flaw found in lodash"), "{inbox}");
+    assert!(inbox.contains("box · lodash 4.17.20: CVE-2"), "{inbox}");
+    assert!(
+        inbox.contains(">Unread<") && inbox.contains(">Read<"),
+        "{inbox}"
+    );
+    assert!(inbox.contains("1 unread · 0 acknowledged"), "{inbox}");
+
+    store
+        .mail("me", "ack", &serde_json::Number::from(1), &zero)
+        .unwrap();
+    let inbox = page(&app, "/inbox");
+    assert!(inbox.contains("Reader: me · 1 open"), "{inbox}");
+    assert!(!inbox.contains("CVE-1"), "{inbox}");
+}
+
+#[test]
+fn repairs_shows_waiting_drafts_under_needs_review_and_policy_shows_the_fleet_mode() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let config = repair_config(temp.path());
+    Repairs::open(&state, &config).unwrap();
+    let plan = json!({"kind":"os","manager":"apt","package":"pkg","old":"1.0","new":"1.1"});
+    set_claim(&state, "planned", &plan);
+    rusqlite::Connection::open(state.join("repairs.db"))
+        .unwrap()
+        .execute(
+            "INSERT INTO drafts(item,payload) VALUES('pkg',?)",
+            [json!({"item":"pkg","changes":plan,"digest":vorda::repair::digest(&plan).unwrap(),"risk":"One package"})
+                .to_string()],
+        )
+        .unwrap();
+    let app = App::new(
+        &state,
+        "127.0.0.1",
+        7780,
+        String::new(),
+        false,
+        Some(config.as_path()),
+    )
+    .unwrap();
+
+    let needs = page(&app, "/repairs");
+    assert!(needs.contains("Proposed change"), "{needs}");
+    assert!(needs.contains("1.0 → 1.1"), "{needs}");
+    assert!(needs.contains("One package"), "{needs}");
+    let id = needs
+        .split("href=\"/review/")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .unwrap();
+    assert!(page(&app, "/repairs?tab=approved").contains("No approved repairs"));
+    assert!(page(&app, "/repairs?tab=history").contains("No repair history"));
+    let review = page(&app, &format!("/review/{id}"));
+    assert!(review.contains("href=\"/repairs\""), "{review}");
+
+    let policy = page(&app, "/policy");
+    assert!(policy.contains("Current policy is Fix."), "{policy}");
+    assert!(
+        policy.contains("class=\"modebox on\"><b>Fix</b>"),
+        "{policy}"
+    );
+    assert!(
+        policy.contains("Read-only. Start the dashboard with --allow-writes"),
+        "{policy}"
+    );
+    for protected in ["Kernel", "sshd", "Bootloader", "Package manager"] {
+        assert!(policy.contains(&format!("<b>{protected}</b>")), "{policy}");
+    }
 }

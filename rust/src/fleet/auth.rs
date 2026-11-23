@@ -210,7 +210,7 @@ impl ReaderStore {
         Ok(db)
     }
     /// The hub's identity: the id of the first device it ever enrolled. Devices are never deleted
-    /// and the id is a random UUID, so it survives M2 `restore` of the hub's own older copy but not
+    /// and the id is a random UUID, so it survives a native `restore` of the hub's own older copy but not
     /// a recreated or foreign hub file. It relies on rowid order surviving: no VACUUM or rebuild of
     /// `devices` may renumber it.
     pub(crate) fn hub_identity(hub: &Path) -> Result<Option<String>> {

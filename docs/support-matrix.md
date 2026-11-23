@@ -1,18 +1,20 @@
 # Native support and release status
 
-Release v0.1.0 publishes unsigned static Linux executables with SHA-256 checksums:
-`vorda-0.1.0-x86_64-unknown-linux-musl` and `vorda-0.1.0-aarch64-unknown-linux-musl`
-(musl with OpenSSL compiled in). Other targets below have no release build yet and
-must be built from source. A target in the packaging script is only a build option,
-not proof that the executable, installer, or scheduler passed on that platform. The
-installed native executable does not need Python.
+Release v0.2.0 publishes signed static Linux executables with SHA-256 checksums
+and minisign signatures (key ID `57E5204A70E3811B`):
+`vorda-0.2.0-x86_64-unknown-linux-musl` and
+`vorda-0.2.0-aarch64-unknown-linux-musl` (musl with OpenSSL compiled in). Other
+targets below have no release build yet and must be built from source. A target
+in the packaging script is only a build option, not proof that the executable,
+installer, or scheduler passed on that platform. The installed native executable
+does not need Python.
 
 | Target | Current checks and limits |
 | --- | --- |
 | `x86_64-unknown-linux-gnu` | Primary dev target. Linux CI runs locked Rust tests and native MCP protocol checks. The release-candidate workflow builds unsigned artifacts, verifies packaging/install checksums, and runs installed CLI smoke tests. Each pass applies only to that exact source and artifact. |
 | `aarch64-unknown-linux-gnu` | Packaging target and Homebrew template only; no target CI job or release acceptance yet. |
-| `x86_64-unknown-linux-musl` | Release target (v0.1.0, static binary with OpenSSL compiled in, unsigned with SHA-256 checksum). Tested on Linux x86_64 on 2026-11-22: ran `vorda --version` (printed `vorda 0.1.0`), `vorda db update` (41 seconds), an offline scan, and an online scan. |
-| `aarch64-unknown-linux-musl` | Release target (v0.1.0, static binary with OpenSSL compiled in, unsigned with SHA-256 checksum). Cross-built and confirmed static on 2026-11-22, but not run on arm64 hardware yet. |
+| `x86_64-unknown-linux-musl` | Signed release target (v0.2.0, static binary with OpenSSL compiled in, minisign signature and SHA-256 checksum). Tested on v0.1.0 on Linux x86_64 on 2026-11-22: ran `vorda --version` (printed `vorda 0.1.0`), `vorda db update` (41 seconds), an offline scan, and an online scan. |
+| `aarch64-unknown-linux-musl` | Signed release target (v0.2.0, static binary with OpenSSL compiled in, minisign signature and SHA-256 checksum). v0.1.0 was cross-built and confirmed static on 2026-11-22, and no release build has been run on arm64 hardware yet. |
 | `x86_64-pc-windows-msvc` | Optional manual Windows CI builds the native CLI and runs smoke and protocol checks; skipped on default PR runs. PowerShell installer and scheduled-task recipes need separate Windows acceptance, not Linux checks. |
 | `aarch64-pc-windows-msvc` | Packaging target only; no target CI job or release acceptance yet. |
 | `x86_64-apple-darwin` | Packaging target and Homebrew template only; no macOS CI or release acceptance yet. |
@@ -32,8 +34,9 @@ unattended Windows operation or multi-host capacity.
 
 Bind each release's acceptance to an immutable source commit and exact artifact bytes.
 Require platform checks, installed CLI/MCP smoke tests, lockfile-matched dependency
-notices, checksums, and separately verified Minisign signatures. Builds stay unsigned
-until explicitly signed (v0.1.0 ships with SHA-256 checksums only). Verify the trusted
+notices, checksums, and separately verified Minisign signatures.
+Release builds starting with v0.2.0 are signed with the Vorda release key (minisign key ID `57E5204A70E3811B`); earlier releases (v0.1.0 and v0.1.1) shipped with SHA-256 checksums only.
+Verify the trusted
 key independently; `verify-self` never trusts a public key beside the executable. Public
 git history and distributed artifacts also need their own secret, privacy, and license
 review. CI config alone does not enforce branches or authorize a release.

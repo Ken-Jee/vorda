@@ -19,12 +19,11 @@ fn invalid(message: impl Into<String>) -> Error {
     }
 }
 
-/// The release public key built into the binary. The committed file is a placeholder until the
-/// owner replaces it with the real minisign public key; a build with the placeholder has no
-/// release key and reports itself unsigned.
+/// The release public key built into the binary (minisign key ID 57E5204A70E3811B). A build
+/// whose key file is a placeholder has no release key and reports itself unsigned.
 const RELEASE_KEY: &str = include_str!("../../release/vorda-release.pub");
 
-fn built_in_key() -> Option<&'static str> {
+pub(crate) fn built_in_key() -> Option<&'static str> {
     (!RELEASE_KEY.contains("PLACEHOLDER")).then_some(RELEASE_KEY)
 }
 
@@ -123,7 +122,7 @@ pub fn verify_self(args: &[String]) -> Result<i32> {
     });
     let result: Value = match key {
         None => {
-            json!({"status":"unsigned", "detail":"Development build: no release key built in. Pass --pubkey to check against a key you trust."})
+            json!({"status":"unsigned", "detail":"This binary has no release key built in because it was built with a placeholder release key file (every standard Vorda build, including official releases and builds compiled from source, has the release key built in). Pass --pubkey FILE to check against a key you trust."})
         }
         Some(_) if !explicit_file && !required && !signature.exists() => {
             json!({"status":"unsigned", "detail":"No signature beside this executable. Pass --pubkey to require one."})

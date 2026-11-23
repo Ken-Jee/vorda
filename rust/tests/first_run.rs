@@ -106,7 +106,7 @@ fn help_and_version_answer_as_words_and_flags() {
     let (exit, help, _) = vorda(state, &["--help"]);
     assert_eq!(exit, 0);
     assert!(
-        help.contains("scan          Check lockfiles and pinned requirements"),
+        help.contains("scan          Check this machine (OS packages, tools, "),
         "{help}"
     );
     assert_eq!(vorda(state, &["help"]), (0, help, String::new()));
@@ -127,11 +127,84 @@ fn help_and_version_answer_as_words_and_flags() {
 }
 
 #[test]
-fn a_bare_scan_path_is_answered_with_the_root_flag() {
+fn a_scan_path_checks_only_that_project() {
     let temp = tempfile::tempdir().unwrap();
-    let (exit, _, stderr) = vorda(temp.path(), &["scan", "tests/fixtures"]);
-    assert_eq!(exit, 64);
-    assert!(stderr.contains("pass --root tests/fixtures"), "{stderr}");
+    let (root, state) = project(temp.path(), 2);
+    let (exit, json, stderr) = vorda(&state, &["scan", "--json", root.to_str().unwrap()]);
+    assert_eq!(exit, 3, "{stderr}");
+    let json: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(json["findings"].as_array().unwrap().len(), 2);
+    assert_eq!(json["machine"], Value::Null);
+}
+
+#[test]
+fn a_scan_with_no_path_checks_the_machine_and_skips_home_caches() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    for dir in [
+        "code/app",
+        "go/src/old",
+        ".cache/tool",
+        "Downloads/archive",
+        "go/pkg/mod/dep",
+    ] {
+        fs::create_dir_all(home.join(dir)).unwrap();
+        fs::write(home.join(dir).join("package-lock.json"), LOCK).unwrap();
+    }
+    #[cfg(unix)]
+    {
+        let outside = temp.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("package-lock.json"), LOCK).unwrap();
+        std::os::unix::fs::symlink(&outside, home.join("linked")).unwrap();
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
+        .arg("--state")
+        .arg(temp.path().join("state"))
+        .args(["scan", "--offline", "--json"])
+        .current_dir(temp.path())
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .output()
+        .unwrap();
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["machine"], true, "{result}");
+    let home = fs::canonicalize(&home).unwrap();
+    let root = result["scan_roots"][0].as_str().unwrap();
+    assert_eq!(fs::canonicalize(root).unwrap(), home);
+    let mut read: Vec<_> = result["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|p| p["path"].as_str())
+        .filter(|p| p.ends_with("package-lock.json"))
+        .map(|p| Path::new(p).strip_prefix(root).unwrap().to_path_buf())
+        .collect();
+    read.sort();
+    assert_eq!(
+        read,
+        ["code/app/package-lock.json", "go/src/old/package-lock.json"]
+            .map(std::path::PathBuf::from)
+    );
+    let skipped: Vec<_> = result["coverage_evidence"]["observations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|o| o["kind"] == "skipped-folder")
+        .filter_map(|o| o["path"].as_str())
+        .map(|p| Path::new(p).strip_prefix(root).unwrap().to_path_buf())
+        .collect();
+    for dir in [".cache", "Downloads", "go/pkg"] {
+        assert!(skipped.contains(&dir.into()), "{dir}: {skipped:?}");
+    }
+    let errors = result["errors"].to_string();
+    // A cache or a link out of home is never an error; --offline alone is unknown.
+    for path in [".cache", "Downloads", "linked"] {
+        assert!(!errors.contains(&format!("home/{path}")), "{errors}");
+    }
+    // Off Windows there is no registry to read, so its installed-app sources are not run.
+    #[cfg(not(windows))]
+    assert!(!errors.contains("windows-"), "{errors}");
 }
 
 #[test]
@@ -155,6 +228,7 @@ fn docs_cli_md_shows_each_commands_own_help() {
     let temp = tempfile::tempdir().unwrap();
     for command in [
         "",
+        "setup",
         "scan",
         "db",
         "inventory",
@@ -174,6 +248,7 @@ fn docs_cli_md_shows_each_commands_own_help() {
         "link",
         "hub-mcp",
         "snapshot-read",
+        "update",
         "verify-self",
         "licenses",
     ] {
@@ -355,7 +430,7 @@ fn summary_names_a_package_version_once_across_lockfiles() {
     let (exit, text, stderr) = vorda(&state, &["scan", "--root", root.to_str().unwrap()]);
     assert_eq!(exit, 3, "{stderr}");
     assert_eq!(text.matches("example 1.2.3").count(), 1, "{text}");
-    assert!(text.contains("in 1 package:"), "{text}");
+    assert!(text.contains("in 1 package ("), "{text}");
     assert!(text.contains("and 2 others): 2 advisories"), "{text}");
 }
 

@@ -1690,12 +1690,14 @@ fn trickled_request_hits_the_absolute_deadline() {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn order_now() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs_f64()
 }
+#[cfg(target_os = "linux")]
 fn order_lock(f: &Fixture, kind: &str) -> f64 {
     use std::os::unix::fs::MetadataExt;
     let m = fs::metadata(&f.hub.database.path).unwrap();
@@ -1724,8 +1726,17 @@ fn order_lock(f: &Fixture, kind: &str) -> f64 {
                 })
         })
         .expect("SETUP: fdinfo lock must bind kernel identity to exact database path");
+    // Admission holds its lock on `<db>.db-lock`, which shares the database's device.
+    let device = identity.rsplit_once(':').unwrap().0.to_string();
+    let lock_file = format!("{}.db-lock", f.hub.database.path.display());
     let limit = Instant::now() + CLIENT_GUARD;
     loop {
+        let identity = if kind == "pending" {
+            identity.clone()
+        } else {
+            fs::metadata(&lock_file)
+                .map_or_else(|_| String::new(), |m| format!("{device}:{}", m.ino()))
+        };
         let locks = fs::read_to_string("/proc/locks").unwrap();
         let found = locks.lines().any(|line| {
             let v: Vec<_> = line.split_whitespace().collect();
@@ -1748,6 +1759,7 @@ fn order_lock(f: &Fixture, kind: &str) -> f64 {
         thread::yield_now();
     }
 }
+#[cfg(target_os = "linux")]
 fn order_refusal(f: &Fixture, addr: SocketAddr, name: &str, credential: &str) {
     let before = framing_database(f);
     exchange_expecting(f, addr, name, &f.request, credential, 401);
@@ -1761,6 +1773,7 @@ fn order_response(f: &Fixture, response: &[u8]) -> Vec<u8> {
     body(response).to_vec()
 }
 #[test]
+#[cfg(target_os = "linux")]
 fn revoke_commit_is_ordered_against_admission_in_both_directions() {
     let _exclusive = exclusive();
     let f = Fixture::new();
@@ -1833,6 +1846,7 @@ fn revoke_commit_is_ordered_against_admission_in_both_directions() {
     });
 }
 #[test]
+#[cfg(target_os = "linux")]
 fn rotated_credential_expiry_is_ordered_against_admission() {
     let _exclusive = exclusive();
     const NEW: &str = "synthetic-order-rotated-000000000000000000";

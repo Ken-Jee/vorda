@@ -36,4 +36,4 @@ as OSV.dev).
 
 ## Supported versions
 
-Fixes go to the latest release (`0.1.0`) and the latest commit on the default branch.
+Fixes go to the latest release (`0.2.0`) and the latest commit on the default branch.

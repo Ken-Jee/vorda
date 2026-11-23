@@ -236,7 +236,7 @@ fn provenance(package: &Path) -> Result<()> {
     let mut artifacts = serde_json::Map::new();
     files(package, package, &mut artifacts)?;
     let parsed: toml::Value = toml::from_str(&fs::read_to_string(&lock)?)?;
-    let metadata = json!({"schema":"vorda-private-candidate-v1","source_commit":command("git", &["rev-parse","HEAD"],Some(&repo))?,"rustc":command("rustc", &["-Vv"],None)?,"target":"x86_64-unknown-linux-gnu","profile":"release","features":"default","lock_sha256":sha(&lock)?,"run_id":env::var("GITHUB_RUN_ID").ok(),"run_attempt":env::var("GITHUB_RUN_ATTEMPT").ok(),"artifacts":artifacts,"dependencies":parsed.get("package").ok_or("no packages")?});
+    let metadata = json!({"schema":"vorda-candidate-v1","source_commit":command("git", &["rev-parse","HEAD"],Some(&repo))?,"rustc":command("rustc", &["-Vv"],None)?,"target":"x86_64-unknown-linux-gnu","profile":"release","features":"default","lock_sha256":sha(&lock)?,"run_id":env::var("GITHUB_RUN_ID").ok(),"run_attempt":env::var("GITHUB_RUN_ATTEMPT").ok(),"artifacts":artifacts,"dependencies":parsed.get("package").ok_or("no packages")?});
     fs::write(
         &manifest,
         format!("{}\n", serde_json::to_string_pretty(&metadata)?),

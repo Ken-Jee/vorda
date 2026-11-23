@@ -11,6 +11,7 @@ pub mod repair;
 pub mod scanner;
 pub mod store;
 pub mod surfaces;
+pub mod update;
 
 pub use error::{Error, Result};
 

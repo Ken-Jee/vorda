@@ -328,6 +328,8 @@ pub fn semantic(value: &Value) -> Value {
                         "kev",
                         "priority",
                         "published",
+                        // Display text: a new or edited advisory title is not a new finding.
+                        "summary",
                         "inventory_observed_at",
                         "advisories_checked_at",
                     ]

@@ -2,6 +2,7 @@ pub mod control;
 pub mod data;
 pub mod english;
 pub mod feed;
+pub mod inventory;
 pub mod views;
 use crate::{Error, Result};
 use hmac::{Hmac, Mac};
@@ -9,7 +10,7 @@ use serde_json::{json, Value};
 use sha2::Sha256;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::{Read, Write},
+    io::{IsTerminal, Read, Write},
     net::{IpAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     sync::{
@@ -18,6 +19,8 @@ use std::{
     },
     time::Duration,
 };
+const COPY_TOKEN_NEEDS_ENV: &str = "--token requires VORDA_DASHBOARD_TOKEN when stdout is not a terminal (for example in a systemd service). Vorda prints the login token only to a terminal so it never lands in a log; set VORDA_DASHBOARD_TOKEN to choose the token yourself.";
+const COPY_TOKEN_NOT_PRINTED: &str = "Token omitted because stdout is not a terminal; to log in, add ?token= followed by your VORDA_DASHBOARD_TOKEN value to the URL above.";
 fn mac(key: &[u8], data: &[u8]) -> Vec<u8> {
     let mut m = Hmac::<Sha256>::new_from_slice(key).unwrap();
     m.update(data);
@@ -251,7 +254,7 @@ impl App {
             return match control::write(&self.state, self.fix_config.as_deref(), path, &form) {
                 Ok(location) => Response::new(303, Vec::new(), &nonce).header("Location", location),
                 Err(e) => {
-                    let screen = if path == "/mode" { "modes" } else { "mailbox" };
+                    let screen = if path == "/mode" { "policy" } else { "repairs" };
                     let body = format!(
                         "<h1>Not done</h1>{}",
                         views::empty(
@@ -259,7 +262,11 @@ impl App {
                             &format!("<a href=\"/{screen}\">Go back</a>")
                         )
                     );
-                    Response::new(409, views::page(screen, "Not done", &body, &nonce), &nonce)
+                    Response::new(
+                        409,
+                        views::page(screen, "Not done", &body, &nonce, ""),
+                        &nonce,
+                    )
                 }
             };
         }
@@ -283,48 +290,38 @@ impl App {
         let scopes = query
             .get("scope")
             .map(|v| v.iter().cloned().collect::<BTreeSet<_>>());
-        let snapshot = match self.read(scopes.as_ref()) {
-            Ok(s) => s,
-            Err(_) => {
-                let exists = self.state.join("mail.db").exists();
-                let body = format!(
-                    "<h1>Now</h1>{}",
-                    views::empty(
-                        if exists {
-                            "Can't read the mailbox"
-                        } else {
-                            "No mailbox yet"
-                        },
-                        &if exists {
-                            views::e(&self.state.to_string_lossy())
-                        } else {
-                            views::copy_cmd("vorda check")
-                        }
-                    )
-                );
-                return Response::new(200, views::page("now", "Now", &body, &nonce), &nonce);
-            }
-        };
-        if path == "/api/assets" {
-            return Response::new(200, snapshot["assets"].to_string(), &nonce)
-                .header("Content-Type", "application/json");
-        }
         let (screen, title, id) = match path {
-            "/" => ("now", "Now", ""),
-            "/hosts" => ("hosts", "Hosts", ""),
+            "/api/assets" => ("api", "", ""),
+            "/" => ("overview", "Overview", ""),
             "/findings" => ("findings", "Findings", ""),
-            "/fixes" => ("fixes", "Fixes", ""),
-            "/agents" => ("agents", "Agent tools", ""),
-            "/speed" => ("speed", "Speed", ""),
-            "/news" => ("news", "News", ""),
-            "/mailbox" => ("mailbox", "Mailbox", ""),
-            "/modes" => ("modes", "Modes", ""),
-            "/more" => ("more", "More", ""),
+            "/inventory" => ("inventory", "Inventory", get("tab")),
+            "/inbox" => ("inbox", "Inbox", ""),
+            "/repairs" => ("repairs", "Repairs", get("tab")),
+            "/policy" => ("policy", "Policy", ""),
             p if p.starts_with("/finding/") => ("finding", "Finding", &p[9..]),
             p if p.starts_with("/review/") => ("review", "Review", &p[8..]),
             _ => return Response::new(404, "Not found", &nonce),
         };
-        let filter = if ["all", "kev", "browser", "os", "library", "agent"].contains(&get("f")) {
+        let active = match screen {
+            "finding" => "findings",
+            "review" => "repairs",
+            s => s,
+        };
+        let snapshot = match self.read(scopes.as_ref()) {
+            Ok(s) => s,
+            Err(_) if screen == "api" => {
+                return Response::new(503, "Can't read the mailbox", &nonce);
+            }
+            Err(_) => {
+                let body = views::error_page(title, &self.state.join("mail.db").to_string_lossy());
+                return Response::new(200, views::page(active, title, &body, &nonce, ""), &nonce);
+            }
+        };
+        if screen == "api" {
+            return Response::new(200, snapshot["assets"].to_string(), &nonce)
+                .header("Content-Type", "application/json");
+        }
+        let filter = if ["all", "kev", "review", "coverage"].contains(&get("f")) {
             get("f")
         } else {
             "all"
@@ -335,12 +332,13 @@ impl App {
                 filter,
                 get("host"),
                 get("project"),
+                get("id"),
             ))
         } else {
             views::render(
                 &snapshot,
                 screen,
-                id,
+                if screen == "findings" { get("id") } else { id },
                 filter,
                 get("host"),
                 &self.csrf(&session),
@@ -349,12 +347,7 @@ impl App {
         };
         let status = if body.is_some() { 200 } else { 404 };
         let body = body.unwrap_or_else(|| views::missing(screen));
-        let active = match screen {
-            "finding" => "findings",
-            "review" => "mailbox",
-            s => s,
-        };
-        let mut html = views::page(active, title, &body, &nonce);
+        let mut html = views::page(active, title, &body, &nonce, &views::last_scan(&snapshot));
         if let Some(scopes) = scopes {
             let selection = url::form_urlencoded::Serializer::new(String::new())
                 .extend_pairs(scopes.iter().map(|v| ("scope", v)))
@@ -473,11 +466,17 @@ pub fn serve(
     writable: bool,
     config: Option<&Path>,
 ) -> Result<()> {
+    let chosen = std::env::var("VORDA_DASHBOARD_TOKEN")
+        .ok()
+        .filter(|s| !s.is_empty());
+    // Output that is not a terminal often lands in a log, such as the systemd journal: the
+    // token is printed only to a terminal, so a log reader cannot log in.
+    let terminal = std::io::stdout().is_terminal();
+    if (token || writable) && !terminal && chosen.is_none() {
+        return Err(Error::usage(COPY_TOKEN_NEEDS_ENV));
+    }
     let secret = if token || writable {
-        std::env::var("VORDA_DASHBOARD_TOKEN")
-            .ok()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(random)
+        chosen.unwrap_or_else(random)
     } else {
         String::new()
     };
@@ -500,12 +499,15 @@ pub fn serve(
     println!(
         "http://{host}:{}/{}",
         app.port,
-        if app.token.is_empty() {
+        if app.token.is_empty() || !terminal {
             String::new()
         } else {
             format!("?token={}", app.token)
         }
     );
+    if !app.token.is_empty() && !terminal {
+        println!("{COPY_TOKEN_NOT_PRINTED}");
+    }
     std::io::stdout().flush()?;
     let app = Arc::new(app);
     let active = Arc::new(AtomicUsize::new(0));

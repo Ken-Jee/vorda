@@ -62,8 +62,9 @@ jobs:
           path: ${{ runner.temp }}/package/
           retention-days: 3
           if-no-files-found: error
-  # Static (musl) executables that install.sh downloads. Unsigned and build-only;
-  # attach them to a release by hand with install.sh and a SHA256SUMS of the assets.
+  # Static (musl) executables that install.sh and `vorda update` download. Unsigned and
+  # build-only: combine every package with rust/release/combine-native.sh, then sign that
+  # directory locally with sign-native.sh (never here) before attaching it to a release.
   static:
     if: (inputs.confirmation == 'BUILD' || inputs.confirmation == 'SIGN') && github.ref == 'refs/heads/main'
     strategy:

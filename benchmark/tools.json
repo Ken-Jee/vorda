@@ -1,0 +1,46 @@
+{
+  "comment": "Pinned scanner releases. setup-tools.sh downloads each asset and refuses it unless its SHA-256 matches.",
+  "tools": {
+    "vorda": {
+      "version": "0.1.0",
+      "url": "https://github.com/Ken-Jee/vorda/releases/download/v0.1.0/vorda-0.1.0-x86_64-unknown-linux-musl",
+      "sha256": "286d6ba0fbda2ac7a4a51eb59dde767fec9d4c937f36438d060372a2ccd147e0",
+      "kind": "binary",
+      "bin": "vorda"
+    },
+    "osv-scanner": {
+      "version": "2.7.1",
+      "url": "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64",
+      "sha256": "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8",
+      "kind": "binary",
+      "bin": "osv-scanner"
+    },
+    "trivy": {
+      "version": "0.76.2",
+      "url": "https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz",
+      "sha256": "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf",
+      "kind": "tar.gz",
+      "bin": "trivy"
+    },
+    "grype": {
+      "version": "0.122.1",
+      "url": "https://github.com/anchore/grype/releases/download/v0.122.1/grype_0.122.1_linux_amd64.tar.gz",
+      "sha256": "f1ba7e2917ee1395618de20a98da0aa7c0fb1788927797651047c50502a37538",
+      "kind": "tar.gz",
+      "bin": "grype"
+    }
+  },
+  "helpers": {
+    "crane": {
+      "version": "0.22.1",
+      "purpose": "saves container images as OCI archives without a daemon and without running them",
+      "url": "https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz",
+      "sha256": "0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0",
+      "kind": "tar.gz",
+      "bin": "crane"
+    }
+  },
+  "excluded": {
+    "snyk": "snyk test needs a Snyk account (snyk auth or SNYK_TOKEN), so it is left out"
+  }
+}

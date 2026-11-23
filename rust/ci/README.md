@@ -91,26 +91,26 @@ untouched.
 
 ### Measured
 
-All times are seconds. "NVD pause" is the patch that lets fixture feeds skip the
-NVD rate-limit sleep, "import transaction" wraps the `import_authority`
-quiet-scope inserts in one transaction, "backoff assert" is the flaky
-`storage_link` assertion fix. **These three are separate PRs; the rows below that
-include them only apply once those PRs have merged.**
+All times are in seconds. The labels below name three changes now in the code,
+and the "before" column measures the code before them. "NVD pause" lets fixture
+feeds skip the NVD rate-limit sleep. "import transaction" wraps the
+`import_authority` quiet-scope inserts in one transaction. "backoff assert" fixes
+the flaky `storage_link` assertion.
 
 | What | Machine, fs, n | Before | After |
 | --- | --- | --- | --- |
-| Whole PR job, step sum, cold: main, plain `cargo test` | 2 vCPU CI-sized box, median of 3 | 219.6 | |
+| Whole PR job, step sum, cold: main, plain `cargo test` | 2 vCPU Linux VM, median of 3 | 219.6 | |
 | + NVD pause | same | | 168.1 |
 | + NVD pause + nextest, 8 threads | same | | 109.1 |
-| Same comparison interleaved on one other clean box | another clean 2 vCPU box | 218.1 | 111.2 (NVD pause + import transaction + nextest 8 threads) |
-| Tests only, 10 runs each, alternating (main + NVD pause + import transaction + backoff assert) | 2 vCPU CI-sized box | | 4 threads: median 55.5 (49.9-63.1), 0/10 failed; 8 threads: median 36.5, 2/10 failed |
-| Test run: `cargo test` vs nextest (main + NVD pause) | WSL, 4 CPUs, n not recorded | 19.7 | 10.8 |
-| Link with mold vs default, cold build (main + NVD pause) | WSL, 4 CPUs, median of 5, noise 0.7 % | 39.0 | 38.0 |
+| Same comparison interleaved on one other clean box | another clean 2 vCPU Linux VM | 218.1 | 111.2 (NVD pause + import transaction + nextest 8 threads) |
+| Tests only, 10 runs each, alternating (main + NVD pause + import transaction + backoff assert) | 2 vCPU Linux VM | | 4 threads: median 55.5 (49.9-63.1), 0/10 failed; 8 threads: median 36.5, 2/10 failed |
+| Test run: `cargo test` vs nextest (main + NVD pause) | Linux workstation, 4 CPUs, n not recorded | 19.7 | 10.8 |
+| Link with mold vs default, cold build (main + NVD pause) | Linux workstation, 4 CPUs, median of 5, noise 0.7 % | 39.0 | 38.0 |
 | Link with mold vs default, rebuild after a library edit (main + NVD pause) | same | 14.0 | 12.9 |
 | Link with mold vs default, rebuild after a test-file edit (main + NVD pause) | same | 0.53 | 0.40 |
-| Incremental on vs off, `check` / edit + build / edit + one test (main + NVD pause + mold) | WSL, 12 CPUs (build jobs capped at 4), separate build disk, 3 baseline and 2 incremental rounds, noise 3.4 % | 3.9 / 12.4 / 6.4 | 1.4 / 7.5 / 1.9 |
+| Incremental on vs off, `check` / edit + build / edit + one test (main + NVD pause + mold) | Linux workstation, 12 CPUs (build jobs capped at 4), 3 baseline and 2 incremental rounds, noise 3.4 % | 3.9 / 12.4 / 6.4 | 1.4 / 7.5 / 1.9 |
 | Incremental on vs off, cold build (same setup) | same | 35.4 | 37.7 |
-| Compiled-cache restore: with vs without | 2 vCPU CI-sized box, interleaved | 218.1 baseline | 201.2 with cache; restore step costs 15.7 |
+| Compiled-cache restore: with vs without | 2 vCPU Linux VM, interleaved | 218.1 baseline | 201.2 with cache; restore step costs 15.7 |
 
 Limits:
 
@@ -120,7 +120,7 @@ Limits:
   projection, not a measurement.
 - The 90 s target is only reached on a persistent warm box (43-61 s per run
   with nextest at 8 threads), not on a cold runner.
-- Some WSL medians have n of 2-4 because the benchmark harness lost samples.
+- Some workstation medians have n of 2-4 because the benchmark harness lost samples.
 - "Compiled cache" buys 3-17 s on the cold box and costs 15.7 s to restore. It is
   left in place; main pushes now run the full suite instead of a seed, and
   removing the cache and the unused `--compile-only` mode is a follow-up.

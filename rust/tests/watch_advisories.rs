@@ -66,3 +66,50 @@ fn watch_records_advisory_choice_and_warns_before_offline_schedules_age_out() {
         .unwrap()
         .contains("vorda db update"));
 }
+
+#[test]
+fn watch_scans_the_machine_unless_a_root_is_named() {
+    if Path::new("/usr/bin/launchctl").exists() || Path::new("/bin/launchctl").exists() {
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    fs::create_dir(&home).unwrap();
+    let roots = |flags: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_vorda"))
+            .arg("--state")
+            .arg(temp.path().join("state"))
+            .args(["watch", "install", "--backend", "launchd", "--online"])
+            .args(flags)
+            .env("HOME", &home)
+            .output()
+            .unwrap();
+        let job: Value =
+            plist::from_file(home.join("Library/LaunchAgents/dev.vorda.hourly.plist")).unwrap();
+        let argv: Vec<_> = job["ProgramArguments"].as_array().unwrap().clone();
+        argv.windows(2)
+            .filter(|w| w[0] == "--root")
+            .map(|w| w[1].as_str().unwrap().to_string())
+            .collect::<Vec<_>>()
+    };
+    let project = temp.path().to_str().unwrap();
+    assert!(roots(&[]).is_empty());
+    assert_eq!(roots(&["--root", project]).len(), 1);
+    assert!(roots(&["--machine"]).is_empty());
+    let both = Command::new(env!("CARGO_BIN_EXE_vorda"))
+        .arg("--state")
+        .arg(temp.path().join("state"))
+        .args([
+            "watch",
+            "install",
+            "--backend",
+            "launchd",
+            "--machine",
+            "--root",
+            project,
+        ])
+        .env("HOME", &home)
+        .output()
+        .unwrap();
+    assert_eq!(both.status.code(), Some(64), "{both:?}");
+}

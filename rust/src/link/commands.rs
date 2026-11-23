@@ -83,10 +83,7 @@ fn operator(
         let schema = super::native::schema_version(db).map_err(fail)?;
         return Ok(json!({"migrated":true,"schema":schema}));
     }
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(db)?;
+    let file = super::native::db_lock_file(db)?;
     fs2::FileExt::try_lock_exclusive(&file)
         .map_err(|_| refusal_error("hub database is locked by another process"))?;
     // A schema 3 hub goes back to schema 2 by dropping its derived change log; nothing is lost.

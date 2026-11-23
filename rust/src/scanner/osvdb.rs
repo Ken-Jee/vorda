@@ -25,6 +25,10 @@ pub const DEFAULT_ADVISORIES: &str = "online";
 /// daily refresh is tolerated, a missed weekend of refreshes is reported. Override with
 /// `VORDA_ADVISORY_DB_MAX_AGE_HOURS`.
 pub const MAX_AGE_HOURS: f64 = 72.0;
+/// Starts the error for a feed the offline database never looks up: by design, not a failure.
+pub const NEEDS_NETWORK: &str = "offline-db: not looked up, this source needs the network";
+/// Starts the reason for an ecosystem the offline database cannot match: by design, not a failure.
+pub const NOT_OFFLINE: &str = "offline matching is not available for";
 
 // Bounds on the untrusted exports.
 /// Downloaded export on disk.
@@ -1005,7 +1009,7 @@ impl LocalDb {
                 open(&self.root, ecosystem, self.max_age)
             } else {
                 Err(format!(
-                    "offline matching is not available for {ecosystem}; use online lookups for these packages"
+                    "{NOT_OFFLINE} {ecosystem}; use online lookups for these packages"
                 ))
             };
             self.indexes.insert(ecosystem.to_owned(), opened);
@@ -1211,9 +1215,7 @@ impl FeedSource for LocalDb {
             row["source_url"] = json!(format!("offline-db:{}", string(&row, "source_url")));
             return Ok(row);
         }
-        Err(error(format!(
-            "offline-db: not looked up, this source needs the network: {url}"
-        )))
+        Err(error(format!("{NEEDS_NETWORK}: {url}")))
     }
     fn budget_exhausted(&self) -> bool {
         self.exhausted

@@ -49,7 +49,7 @@ fn finding_at(state: &Path, lockfile: &Path, scope: &Value, name: &str) {
 
 fn pages(state: &Path) -> (Value, String, String) {
     let s = data::snapshot(state, vorda::store::now(), None).unwrap();
-    let home = views::now_screen(&s);
+    let home = views::overview_screen(&s);
     let findings = views::render(&s, "findings", "", "all", "", "", false).unwrap();
     (s, home, findings)
 }
@@ -135,20 +135,23 @@ fn online_empty_project_is_unknown_with_both_saved_scan_statuses() {
         record_online_scan(t.path(), &[&root], &[], status);
         let (_, home, findings) = pages(t.path());
         assert!(
-            home.contains("Can't confirm") && home.contains("Nothing checked"),
+            home.contains("Can&#x27;t confirm") && home.contains("Nothing checked"),
             "{home}"
         );
-        assert!(home.contains("1 project unknown"), "{home}");
+        assert!(home.contains("Can&#x27;t confirm"), "{home}");
         assert!(
-            !home.contains("All clear") && !home.contains("Fine") && !home.contains("No scans yet"),
+            !home.contains("Nothing needs attention")
+                && !home.contains("Fine")
+                && !home.contains("No scans yet"),
             "{home}"
         );
         let card = home
-            .split("<a class=\"row\"")
+            .split("<a class=\"listrow\"")
+            .skip(1)
             .find(|row| row.contains("Nothing checked"))
             .unwrap();
         assert!(
-            card.contains("Can't confirm") && !card.contains("Clear"),
+            card.contains("Can&#x27;t confirm") && !card.contains("Clear"),
             "{card}"
         );
         assert!(findings.contains("Can&#x27;t confirm"), "{findings}");
@@ -183,18 +186,19 @@ fn empty_root_already_saved_as_unknown_with_a_named_error_is_counted_once() {
     .unwrap();
     let (_, home, _) = pages(t.path());
     assert!(
-        home.contains("1 project unknown") && !home.contains("2 projects unknown"),
+        home.contains("Can&#x27;t confirm") && home.matches("Can&#x27;t confirm").count() == 1,
         "{home}"
     );
     assert!(
-        !home.contains("All clear") && !home.contains("Fine"),
+        !home.contains("Nothing needs attention") && !home.contains("Fine"),
         "{home}"
     );
     let card = home
-        .split("<a class=\"row\"")
+        .split("<a class=\"listrow\"")
+        .skip(1)
         .find(|row| row.contains("empty-project"))
         .unwrap();
-    assert_eq!(card.matches("Can't confirm").count(), 1, "{card}");
+    assert_eq!(card.matches("Can&#x27;t confirm").count(), 1, "{card}");
     assert!(!card.contains("Clear"), "{card}");
 }
 
@@ -212,7 +216,8 @@ fn legacy_online_empty_scope_is_unknown_without_claiming_a_root() {
     let (_, home, _) = pages(t.path());
     let target = finding_link(&home, "scope", scope);
     let row = home
-        .split("<a class=\"row\"")
+        .split("<a class=\"listrow\"")
+        .skip(1)
         .find(|row| row.contains(&target))
         .unwrap();
     assert!(
@@ -220,10 +225,10 @@ fn legacy_online_empty_scope_is_unknown_without_claiming_a_root() {
         "{row}"
     );
     assert!(
-        !row.contains("Clear") && !home.contains("All clear"),
+        !row.contains("Clear") && !home.contains("Nothing needs attention"),
         "{home}"
     );
-    assert!(home.contains("1 project unknown"), "{home}");
+    assert!(home.contains("Can&#x27;t confirm"), "{home}");
     assert!(get(t.path(), &target).contains("Can&#x27;t confirm"));
 }
 
@@ -246,19 +251,20 @@ fn online_empty_root_stays_unknown_beside_a_covered_root_in_separate_or_combined
         }
         let (_, home, _) = pages(t.path());
         assert!(
-            home.contains("1 project unknown") && home.contains("Nothing checked"),
+            home.contains("Can&#x27;t confirm") && home.contains("Nothing checked"),
             "{home}"
         );
         assert!(
-            !home.contains("All clear") && !home.contains("Fine"),
+            !home.contains("Nothing needs attention") && !home.contains("Fine"),
             "{home}"
         );
         let card = home
-            .split("<a class=\"row\"")
+            .split("<a class=\"listrow\"")
+            .skip(1)
             .find(|row| row.contains("Nothing checked"))
             .unwrap();
         assert!(
-            card.contains("Can't confirm") && !card.contains("Clear"),
+            card.contains("Can&#x27;t confirm") && !card.contains("Clear"),
             "{card}"
         );
         let empty_page = get(
@@ -297,7 +303,8 @@ fn legacy_card_is_historical_after_findings_move_to_a_known_root() {
     let (_, home, _) = pages(t.path());
     let target = finding_link(&home, "scope", &scope);
     let row = home
-        .split("<a class=\"row\"")
+        .split("<a class=\"listrow\"")
+        .skip(1)
         .find(|row| row.contains(&target))
         .unwrap();
     assert!(row.contains("Saved historical scope"), "{home}");
@@ -320,10 +327,14 @@ fn vulnerable_imported_package_list_shows_its_findings_over_http() {
     finding_at(t.path(), lockfile, &saved["scan_scope"], "IMPORT-ADV");
     let (_, home, _) = pages(t.path());
     let card = home
-        .split("<a class=\"row\"")
+        .split("<a class=\"listrow\"")
+        .skip(1)
         .find(|row| row.contains("Imported package list"))
         .expect(&home);
-    assert!(card.contains("1 open") && card.contains("Urgent"), "{card}");
+    assert!(
+        card.contains("1 open") && card.contains("1 needs attention"),
+        "{card}"
+    );
     assert!(
         !card.contains("Nothing checked") && !home.contains("Scan failed"),
         "{home}"
@@ -336,7 +347,7 @@ fn vulnerable_imported_package_list_shows_its_findings_over_http() {
         page.contains("IMPORT-ADV") && !page.contains("Scan failed"),
         "{page}"
     );
-    assert!(!home.contains("All clear"), "{home}");
+    assert!(!home.contains("Nothing needs attention"), "{home}");
 }
 
 #[test]
@@ -345,14 +356,14 @@ fn clean_complete_imported_package_list_can_be_all_clear() {
     let cwd = t.path().join("workdir");
     let saved = record_online_scan(t.path(), &[&cwd], &[Path::new("/app")], "no-known-findings");
     let (_, home, _) = pages(t.path());
-    assert!(home.contains("All clear"), "{home}");
+    assert!(home.contains("Nothing needs attention"), "{home}");
     assert!(
-        !home.contains("Can't confirm")
+        !home.contains("Can&#x27;t confirm")
             && !home.contains("Scan failed")
             && !home.contains("Nothing checked"),
         "{home}"
     );
-    assert!(home.contains("0 projects unknown"), "{home}");
+    assert!(!home.contains("Can&#x27;t confirm"), "{home}");
     let page = get(
         t.path(),
         &finding_link(&home, "scope", saved["scan_scope"].as_str().unwrap()),
@@ -404,6 +415,7 @@ fn unconfirmed_pages_say_what_is_true_and_what_to_do_not_scan_failed() {
     }
 }
 
+#[cfg(unix)]
 fn lock(dir: &Path, prefix: &str, count: usize) {
     let mut packages = serde_json::Map::new();
     packages.insert("".into(), json!({"name": prefix}));
@@ -422,6 +434,7 @@ fn lock(dir: &Path, prefix: &str, count: usize) {
 }
 
 // An offline scan saved as the online scan would be: only its own inventory errors remain.
+#[cfg(unix)]
 fn keep_inventory_errors(state: &Path, roots: &[&Path]) {
     let mut saved = scan_many(state, roots);
     let errors: Vec<Value> = saved["errors"]
@@ -448,6 +461,7 @@ fn keep_inventory_errors(state: &Path, roots: &[&Path]) {
 }
 
 #[test]
+#[cfg(unix)]
 fn unconfirmed_cards_name_the_scans_own_reason() {
     let t = tempfile::tempdir().unwrap();
     let state = t.path().join("state");
@@ -464,14 +478,15 @@ fn unconfirmed_cards_name_the_scans_own_reason() {
     keep_inventory_errors(&state, &[&sym]);
     let (_, home, _) = pages(&state);
     let card = |root: &Path| {
-        home.split("<a class=\"row\"")
+        home.split("<a class=\"listrow\"")
+            .skip(1)
             .find(|row| row.contains(&format!("{} · scanned", root.display())))
             .expect(&home)
             .to_string()
     };
     let cap_card = card(&cap);
     assert!(
-        cap_card.contains("Can't confirm")
+        cap_card.contains("Can&#x27;t confirm")
             && cap_card.contains("over the per-input cap")
             && !cap_card.contains("no supported lockfile found"),
         "{cap_card}"
@@ -484,7 +499,7 @@ fn unconfirmed_cards_name_the_scans_own_reason() {
     );
     let sym_card = card(&sym);
     assert!(
-        sym_card.contains("Can't confirm") && sym_card.contains("skipped symlink directory"),
+        sym_card.contains("Can&#x27;t confirm") && sym_card.contains("skipped symlink directory"),
         "{sym_card}"
     );
     let page = get(
@@ -515,6 +530,7 @@ fn unconfirmed_cards_name_the_scans_own_reason() {
 }
 
 #[test]
+#[cfg(unix)]
 fn nested_roots_name_one_shared_error_once() {
     let t = tempfile::tempdir().unwrap();
     let state = t.path().join("state");
@@ -527,7 +543,8 @@ fn nested_roots_name_one_shared_error_once() {
     let (_, home, _) = pages(&state);
     for root in [&outer, &inner] {
         let card = home
-            .split("<a class=\"row\"")
+            .split("<a class=\"listrow\"")
+            .skip(1)
             .find(|row| row.contains(&format!("{} · scanned", root.display())))
             .expect(&home);
         assert!(
@@ -559,6 +576,7 @@ fn a_finding_in_a_sibling_sharing_the_name_prefix_stays_on_its_own_card() {
 }
 
 #[test]
+#[cfg(unix)]
 fn a_sibling_folder_sharing_the_name_prefix_keeps_its_scan_error() {
     let t = tempfile::tempdir().unwrap();
     let state = t.path().join("state");
@@ -577,7 +595,8 @@ fn a_sibling_folder_sharing_the_name_prefix_keeps_its_scan_error() {
     keep_inventory_errors(&state, &[&proj, &siblings[0], &siblings[1], &siblings[2]]);
     let (_, home, _) = pages(&state);
     let card = |root: &Path| {
-        home.split("<a class=\"row\"")
+        home.split("<a class=\"listrow\"")
+            .skip(1)
             .find(|row| row.contains(&format!("{} · scanned", root.display())))
             .expect(&home)
             .to_string()
@@ -590,7 +609,7 @@ fn a_sibling_folder_sharing_the_name_prefix_keeps_its_scan_error() {
     for dir in &siblings {
         let sibling_card = card(dir);
         assert!(
-            sibling_card.contains("Can't confirm")
+            sibling_card.contains("Can&#x27;t confirm")
                 && sibling_card.contains("skipped symlink directory"),
             "{sibling_card}"
         );
@@ -624,12 +643,12 @@ fn legacy_only_cards_keep_their_state_and_are_told_apart() {
         .persist_assessment(&quiet_scope, &quiet)
         .unwrap();
     let (_, home, _) = pages(t.path());
-    let rows: Vec<_> = home.split("<a class=\"row\"").skip(1).collect();
+    let rows: Vec<_> = home.split("<a class=\"listrow\"").skip(1).collect();
     let loud = rows
         .iter()
         .find(|r| r.contains("LEGACY-ADV") || r.contains(&scope[..8]))
         .expect(&home);
-    assert!(loud.contains("Urgent"), "{loud}");
+    assert!(loud.contains("1 needs attention"), "{loud}");
     let names: Vec<_> = rows.iter().filter(|r| r.contains("Saved scan")).collect();
     assert!(names.len() == 2 && names[0] != names[1], "{home}");
     assert!(
@@ -667,7 +686,7 @@ fn changed_root_selection_keeps_prior_project_findings() {
     let page = get(&state, &target);
     assert!(page.contains("RETAINED-ADV"), "{page}");
     assert!(
-        page.contains("Open findings</div><div class=\"hero\">1</div>"),
+        page.contains("All findings<span class=\"n\">1</span>"),
         "{page}"
     );
 }
@@ -714,7 +733,7 @@ fn legacy_partial_checkpoint_keeps_findings_outside_its_last_input_folder() {
     );
     assert!(!page.contains("OTHER-ADV"), "{page}");
     assert!(
-        page.contains("Open findings</div><div class=\"hero\">2</div>"),
+        page.contains("All findings<span class=\"n\">2</span>"),
         "{page}"
     );
 }
@@ -740,7 +759,7 @@ fn projects_in_one_scan_have_separate_finding_views() {
     assert!(page.contains("ALPHA-ADV"), "{page}");
     assert!(!page.contains("BETA-ADV"), "{page}");
     assert!(
-        page.contains("Open findings</div><div class=\"hero\">1</div>"),
+        page.contains("All findings<span class=\"n\">1</span>"),
         "{page}"
     );
 }
@@ -755,7 +774,7 @@ fn clear_project_does_not_hide_open_sibling_and_project_links_filter_findings() 
     let clear_root = t.path().join("clear-project");
     let clear = record_online_scan(&state, &[&clear_root], &[&clear_root], "no-known-findings");
     let (_, home, findings) = pages(&state);
-    assert!(!home.contains("All clear"), "{home}");
+    assert!(!home.contains("Nothing needs attention"), "{home}");
     assert!(
         home.contains("1 open") && home.contains("clear-project"),
         "{home}"
@@ -767,7 +786,7 @@ fn clear_project_does_not_hide_open_sibling_and_project_links_filter_findings() 
     let selected =
         std::collections::BTreeSet::from([clear["scan_scope"].as_str().unwrap().to_owned()]);
     let s = data::snapshot(&state, vorda::store::now(), Some(&selected)).unwrap();
-    assert!(views::now_screen(&s).contains("All clear"));
+    assert!(views::overview_screen(&s).contains("Nothing needs attention"));
     let filtered = views::render(&s, "findings", "", "all", "", "", false).unwrap();
     assert!(!filtered.contains("SIBLING-ADV"));
 }
@@ -788,13 +807,13 @@ fn scanning_two_projects_then_empty_keeps_all_projects_and_sums_findings() {
         }
         let (_, home, findings) = pages(&state);
         assert!(home.contains("alpha") && home.contains("beta"), "{home}");
-        assert!(home.contains("2 open"), "{home}");
-        assert!(!home.contains("No scans yet") && !home.contains("All clear"));
+        assert!(home.contains("2 items need attention"), "{home}");
+        assert!(!home.contains("No scans yet") && !home.contains("Nothing needs attention"));
         assert!(
             findings.contains("ALPHA-ADV") && findings.contains("BETA-ADV"),
             "{findings}"
         );
-        assert!(findings.contains("Open findings</div><div class=\"hero\">2</div>"));
+        assert!(findings.contains("All findings<span class=\"n\">2</span>"));
     }
     scan(&state, &a);
     let (snapshot, _, _) = pages(&state);
@@ -820,7 +839,7 @@ fn no_scans_is_the_only_no_scans_state() {
     assert!(!pages(t.path()).1.contains("No scans yet"));
     let selection = std::collections::BTreeSet::from(["no-such-scope".to_owned()]);
     let selected = data::snapshot(t.path(), vorda::store::now(), Some(&selection)).unwrap();
-    for screen in ["now", "hosts", "findings"] {
+    for screen in ["overview", "inventory", "findings"] {
         let page = views::render(&selected, screen, "", "all", "", "", false).unwrap();
         assert!(!page.contains("No scans yet"), "{screen}: {page}");
         assert!(page.contains("No scans in this view"), "{screen}: {page}");
@@ -836,11 +855,11 @@ fn unknown_project_is_named_even_after_a_clear_project() {
     record_online_scan(&state, &[&clear_root], &[&clear_root], "no-known-findings");
     let (_, home, _) = pages(&state);
     assert!(
-        home.contains("Can't confirm") && home.contains("unknown-project"),
+        home.contains("Can&#x27;t confirm") && home.contains("unknown-project"),
         "{home}"
     );
     assert!(home.contains("clear-project"));
-    assert!(!home.contains("All clear"));
+    assert!(!home.contains("Nothing needs attention"));
     let target = finding_link(&home, "project", clear_root.to_str().unwrap());
     let page = get(&state, &target);
     assert!(page.contains("Nothing found"), "{page}");
@@ -853,11 +872,8 @@ fn urgent_and_unknown_both_stay_in_the_headline() {
     let s = scan(t.path(), &root);
     finding(t.path(), &root, &s["scan_scope"], "URGENT-ADV");
     let (_, home, _) = pages(t.path());
-    assert!(home.contains("Can't confirm"));
-    assert!(
-        home.contains("<span class=\"label\">need you</span>"),
-        "{home}"
-    );
+    assert!(home.contains("Can&#x27;t confirm"));
+    assert!(home.contains("1 item needs attention"), "{home}");
 }
 
 #[test]
@@ -877,9 +893,9 @@ fn agent_text_observations_count_as_open_on_both_pages() {
         )
         .unwrap();
     let (_, home, findings) = pages(t.path());
-    assert!(home.contains("0 urgent, 1 open"), "{home}");
+    assert!(home.contains("1 item needs attention"), "{home}");
     assert!(
-        findings.contains("Open findings</div><div class=\"hero\">1</div>"),
+        findings.contains("All findings<span class=\"n\">1</span>"),
         "{findings}"
     );
 }
@@ -892,7 +908,7 @@ fn hostile_and_missing_old_projects_remain_visible_and_escaped() {
     scan(&state, &root);
     fs::remove_dir(&root).unwrap();
     let s = data::snapshot(&state, vorda::store::now() + 3. * 86400., None).unwrap();
-    let home = views::now_screen(&s);
+    let home = views::overview_screen(&s);
     assert!(home.contains("&lt;img"), "{home}");
     assert!(!home.contains("<img"));
     assert!(home.contains("Folder missing"), "{home}");
@@ -900,7 +916,7 @@ fn hostile_and_missing_old_projects_remain_visible_and_escaped() {
 }
 
 fn open_count(page: &str) -> usize {
-    page.split("Open findings</div><div class=\"hero\">")
+    page.split("All findings<span class=\"n\">")
         .nth(1)
         .and_then(|rest| rest.split('<').next())
         .map_or(0, |n| n.parse().unwrap())
@@ -908,7 +924,8 @@ fn open_count(page: &str) -> usize {
 
 fn import_card<'a>(home: &'a str, scope: &Value) -> &'a str {
     let name = format!("Imported package list {}", &scope.as_str().unwrap()[..8]);
-    home.split("<a class=\"row\"")
+    home.split("<a class=\"listrow\"")
+        .skip(1)
         .find(|row| row.contains(&name))
         .expect(home)
 }
@@ -977,14 +994,17 @@ fn two_lists_naming_one_file_keep_their_own_findings() {
     import_finding(&state, &vulnerable, ("lodash", "4.17.20"), "LODASH-ADV");
     let (_, home, _) = pages(&state);
     let card = import_card(&home, &clean);
-    assert!(card.contains("Clear") && card.contains("0 open"), "{card}");
+    assert!(!card.contains("need") && card.contains("0 open"), "{card}");
     let page = get(
         &state,
         &finding_link(&home, "scope", clean.as_str().unwrap()),
     );
     assert!(page.contains("Nothing found"), "{page}");
     let card = import_card(&home, &vulnerable);
-    assert!(card.contains("Urgent") && card.contains("1 open"), "{card}");
+    assert!(
+        card.contains("1 needs attention") && card.contains("1 open"),
+        "{card}"
+    );
     let page = get(
         &state,
         &finding_link(&home, "scope", vulnerable.as_str().unwrap()),
@@ -1047,7 +1067,10 @@ fn one_package_list_imported_under_two_scopes_keeps_both_cards_true() {
     let (_, home, _) = pages(&state);
     for scope in &scopes {
         let card = import_card(&home, scope);
-        assert!(card.contains("Urgent") && card.contains("1 open"), "{card}");
+        assert!(
+            card.contains("1 needs attention") && card.contains("1 open"),
+            "{card}"
+        );
         let page = get(
             &state,
             &finding_link(&home, "scope", scope.as_str().unwrap()),
@@ -1133,4 +1156,35 @@ fn thousands_of_findings_across_lists_still_render_quickly() {
     // A debug build took about 38 s here before; about 3 s after, and about
     // twice that under a loaded test run, so the limit leaves room for slow CI.
     assert!(took.as_secs_f64() < 20., "snapshot took {took:?}");
+}
+
+#[test]
+fn every_page_has_its_own_empty_state_before_the_first_scan() {
+    let t = tempfile::tempdir().unwrap();
+    for (target, title, says) in [
+        ("/", "Overview", "Welcome to Vorda"),
+        ("/findings", "Findings", "No findings yet"),
+        ("/inventory", "Inventory", "No inventory yet"),
+        ("/inbox", "Inbox", "No messages yet"),
+        ("/repairs", "Repairs", "No repairs yet"),
+        ("/policy", "Policy", "Default mode"),
+    ] {
+        let page = get(t.path(), target);
+        assert!(
+            page.contains(&format!("<title>{title} · vorda</title>")),
+            "{target}: {page}"
+        );
+        assert!(page.contains(says), "{target}: {page}");
+    }
+    assert!(
+        fs::read_dir(t.path()).unwrap().next().is_none(),
+        "the dashboard saved state"
+    );
+
+    fs::write(t.path().join("mail.db"), "not a database").unwrap();
+    let page = get(t.path(), "/repairs");
+    assert!(page.contains("<title>Repairs · vorda</title>"), "{page}");
+    assert!(page.contains("Cannot read saved results"), "{page}");
+    assert!(page.contains("mail.db"), "{page}");
+    assert!(page.contains("data-copy=\"vorda scan\""), "{page}");
 }

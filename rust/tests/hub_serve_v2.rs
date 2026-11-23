@@ -646,12 +646,8 @@ fn operator_commands_refuse_while_the_hub_is_in_use() {
             "stop link serve first",
         );
     }
-    // An admission in flight holds the database-file lock.
-    let file = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&w.db)
-        .unwrap();
+    // An admission in flight holds the lock file beside the database.
+    let file = fs::File::open(format!("{}.db-lock", w.db.display())).unwrap();
     fs2::FileExt::try_lock_exclusive(&file).unwrap();
     refused(&w.db, &["restore", "--discard-post-upgrade"], "locked");
     drop(file);

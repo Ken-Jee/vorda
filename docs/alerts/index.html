@@ -69,7 +69,7 @@
 
   <h2 id="own-h">Check your own machines</h2>
   <section class="card" aria-labelledby="own-h">
-    <p>vorda checks what is actually installed on your machine: OS packages, lockfiles, tools, browsers, and MCP servers. It runs locally with no account and no telemetry. This command checks against the local offline database by default (npm, PyPI, crates.io, and Go); OS packages, tools, and browsers need --online (otherwise they report unknown).</p>
+    <p>vorda checks what is actually installed on your machine: OS packages, lockfiles, tools, browsers, and MCP servers. It runs locally with no account and no telemetry. This command checks against the local offline database by default (npm, PyPI, crates.io, and Go); OS packages, tools, and browsers need --online (otherwise they are listed as not assessed; browsers still report unknown with no findings, online and offline).</p>
     <code class="cmd">vorda scan --root ~/projects --os-packages --tools --browsers</code>
     <p><a class="ul" href="https://github.com/Ken-Jee/vorda#install">How to install vorda</a></p>
   </section>

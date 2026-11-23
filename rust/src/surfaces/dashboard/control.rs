@@ -416,6 +416,7 @@ pub fn augment(
     snapshot["matrix"] = json!(matrix);
     snapshot["known"] = json!([machines, agents]);
     snapshot["drafts"] = json!(drafts);
+    snapshot["repairs_on"] = json!(config_path.is_some());
     snapshot["conf"] = conf;
     let exe = std::env::current_exe()?;
     snapshot["fix_cli"] = json!(format!(
@@ -471,7 +472,7 @@ pub fn write(state: &Path, config_path: Option<&Path>, path: &str, form: &Value)
             Path::new(s(&conf, "fleet")),
             &format!("{}\n", serde_json::to_string_pretty(&m.data)?),
         )?;
-        return Ok("/modes".into());
+        return Ok("/policy".into());
     }
     let mut repairs = Repairs::open(state, config_path)?;
     let item = super::super::text(form, "item")?;

@@ -198,6 +198,6 @@ pub fn export_result(
         json!(if complete { "complete" } else { "partial" }),
     );
     Ok(
-        json!({"schema":1,"device":device,"generation":generation,"sequence":1,"scan":uuid::Uuid::new_v4().to_string(),"observed":observed,"scanner":"vorda/0.1.0","coverage":coverage,"findings":findings}),
+        json!({"schema":1,"device":device,"generation":generation,"sequence":1,"scan":uuid::Uuid::new_v4().to_string(),"observed":observed,"scanner":concat!("vorda/", env!("CARGO_PKG_VERSION")),"coverage":coverage,"findings":findings}),
     )
 }

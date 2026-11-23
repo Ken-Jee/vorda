@@ -468,7 +468,13 @@ fn projects(
     Ok(by_root.into_values().collect())
 }
 pub fn snapshot(state: &Path, now: f64, scopes: Option<&BTreeSet<String>>) -> Result<Value> {
-    let db = Connection::open_with_flags(state.join("mail.db"), OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    // Before the first scan there is no mailbox; an empty one gives every page its own empty state.
+    let path = state.join("mail.db");
+    let db = if path.exists() {
+        Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?
+    } else {
+        Connection::open_in_memory()?
+    };
     db.busy_timeout(Duration::from_secs(5))?;
     let tables: BTreeSet<_> = query(&db, "SELECT name FROM sqlite_master WHERE type='table'")?
         .iter()
@@ -603,7 +609,7 @@ pub fn snapshot(state: &Path, now: f64, scopes: Option<&BTreeSet<String>>) -> Re
                 .iter()
                 .any(|scope| data.get("scan_scope") == Some(scope))
             {
-                scans.insert(local.clone(),vec![json!({"host":local,"started":finished-number(&data,"seconds"),"finished":finished,"status":data.get("status").unwrap_or(&json!("unknown")),"seconds":data["seconds"],"findings":a(&data,"findings").len(),"errors":data.get("errors").unwrap_or(&json!([])).to_string()})]);
+                scans.insert(local.clone(),vec![json!({"host":local,"started":finished-number(&data,"seconds"),"finished":finished,"status":data.get("status").unwrap_or(&json!("unknown")),"seconds":data["seconds"],"findings":a(&data,"findings").len(),"errors":data.get("errors").unwrap_or(&json!([])).to_string(),"not_assessed":data.get("not_assessed").unwrap_or(&json!([])).to_string()})]);
             }
         }
     }
@@ -737,6 +743,30 @@ pub fn snapshot(state: &Path, now: f64, scopes: Option<&BTreeSet<String>>) -> Re
         "m.id>r.cursor"
     };
     let readers=query(&db,&format!("SELECT r.name,r.cursor,(SELECT COUNT(*) FROM messages m LEFT JOIN receipts x ON x.message=m.id AND x.reader=r.name WHERE COALESCE(x.ack,0)=0 AND COALESCE(x.snooze,0)<={now} AND {seen}) AS unread,(SELECT COUNT(*) FROM receipts x WHERE x.reader=r.name AND x.ack=1) AS acked,(SELECT created FROM messages WHERE id=r.cursor) AS last_read FROM readers r ORDER BY r.name"))?;
+    // Inbox: messages about still-open findings, health last, newest first. With exactly one reader they follow
+    // that reader's view (`vorda mail list`): acknowledged and snoozed messages drop out.
+    let one = readers.len() == 1;
+    let from = if one {
+        format!("FROM messages m JOIN findings f ON f.key=m.key AND f.active=1 JOIN readers r LEFT JOIN receipts x ON x.message=m.id AND x.reader=r.name WHERE m.kind!='closed' AND COALESCE(x.ack,0)=0 AND COALESCE(x.snooze,0)<={now}")
+    } else {
+        "FROM messages m JOIN findings f ON f.key=m.key AND f.active=1 WHERE m.kind!='closed'"
+            .into()
+    };
+    let unread = if one {
+        format!("({seen})")
+    } else {
+        "NULL".into()
+    };
+    let messages: Vec<_> = query(&db, &format!("SELECT m.key,m.kind,m.payload,{unread} AS unread {from} ORDER BY m.kind='health',m.id DESC LIMIT 7"))?
+        .iter()
+        .map(|r| {
+            let p = load(&r["payload"]);
+            let kind = s(r, "kind");
+            let headline = if kind == "health" { s(&p, "title").into() } else { headline(&p, kind == "changed") };
+            json!({"key":r["key"],"kind":kind,"headline":headline,"title":s(&p,"title"),"host":s(&p,"host"),"unread":r["unread"]})
+        })
+        .collect();
+    let inbox = json!({"open":number(&query(&db, &format!("SELECT COUNT(*) AS n {from}"))?[0], "n"),"reader":if one { s(&readers[0], "name") } else { "" },"messages":messages});
     let mut bom = vec![];
     if tables.contains("bom") {
         let confidence = crate::assets::bom_records(a(&assets, "items"));
@@ -763,7 +793,7 @@ pub fn snapshot(state: &Path, now: f64, scopes: Option<&BTreeSet<String>>) -> Re
         .filter(|i| i["type"] != "health" && now - number(i, "seen") < 86400.)
         .count();
     Ok(
-        json!({"now":now,"has_scans":has_scans,"assets":assets,"projects":projects,"issues":issues,"hosts":hosts,"fixes":fixes,"fixes_weekly":weekly,"speed":speed,"bom":bom,"readers":readers,"news":news,"feed":feed,"new_today":new_today,"exposure":exposure}),
+        json!({"now":now,"has_scans":has_scans,"assets":assets,"projects":projects,"issues":issues,"hosts":hosts,"fixes":fixes,"fixes_weekly":weekly,"speed":speed,"bom":bom,"readers":readers,"inbox":inbox,"news":news,"feed":feed,"new_today":new_today,"exposure":exposure}),
     )
 }
 fn median(values: &[f64]) -> Option<f64> {

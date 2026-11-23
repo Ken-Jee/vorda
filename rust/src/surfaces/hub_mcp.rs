@@ -167,7 +167,7 @@ type Refusal = (i64, String);
 fn handle(hub: &Hub, method: &str, request: &Value) -> std::result::Result<Value, Refusal> {
     match method {
         "initialize" => Ok(
-            json!({"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"vorda-hub","version":"0.1.0"}}),
+            json!({"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"vorda-hub","version":env!("CARGO_PKG_VERSION")}}),
         ),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({"tools":tools()})),

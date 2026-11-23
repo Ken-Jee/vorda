@@ -25,6 +25,8 @@ pub const CFT:&str="https://googlechromelabs.github.io/chrome-for-testing/last-k
 pub const RELEASES: &str =
     "https://chromereleases.googleblog.com/feeds/posts/default?alt=json&max-results=10";
 const CAP: u64 = 128_000_000;
+const COPY_NO_VERSION: &str = "No trusted installed version to match against advisories";
+const COPY_NO_MAPPING: &str = "No verified advisory mapping for this package manager";
 
 /// The name OSV records a package under: PyPI names are compared in their PEP 503 form, so
 /// `Django`, `Flask_Cors` and `zope.interface` match `django`, `flask-cors`, `zope-interface`;
@@ -530,9 +532,14 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
         .unwrap_or_default();
     let have_kev = enrichment.contains_key("kev");
     let mut grouped: BTreeMap<(String, String, String), Vec<&Package>> = BTreeMap::new();
+    // What Vorda cannot assess by design, by (source, reason): listed, never an error.
+    let mut not_assessed = BTreeMap::<(String, String), Vec<String>>::new();
     for p in packages {
         if p.version.is_empty() || p.version == "unknown" {
-            errors.push(json!({"source":"coverage:version","asset":crate::store::asset(p)?,"error":"No trusted installed version; advisory applicability unknown"}));
+            not_assessed
+                .entry(("coverage:version".into(), COPY_NO_VERSION.into()))
+                .or_default()
+                .push(p.name.clone());
             continue;
         }
         if mapped(&p.ecosystem) {
@@ -545,7 +552,10 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
                 .or_default()
                 .push(p);
         } else if !["Chromium", "Arch Linux"].contains(&p.ecosystem.as_str()) {
-            errors.push(json!({"source":format!("coverage:{}",p.ecosystem),"error":"No verified advisory mapping for this package manager"}));
+            not_assessed
+                .entry((format!("coverage:{}", p.ecosystem), COPY_NO_MAPPING.into()))
+                .or_default()
+                .push(format!("{} {}", p.name, p.version));
         }
     }
     let unique: Vec<_> = grouped.values().map(|p| p[0]).collect();
@@ -609,10 +619,18 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
                 for (p, row) in batch.iter().zip(&rows) {
                     // The offline database marks a row it could not fully answer.
                     if let Some(why) = row["unknown"].as_str() {
-                        let entry = unknown
-                            .entry((p.ecosystem.clone(), why.to_owned()))
-                            .or_default();
-                        entry.push(format!("{} {}", source_name(p), source_version(p)));
+                        let label = format!("{} {}", source_name(p), source_version(p));
+                        if why.starts_with(super::osvdb::NOT_OFFLINE) {
+                            not_assessed
+                                .entry((format!("offline-db:{}", p.ecosystem), why.to_owned()))
+                                .or_default()
+                                .push(label);
+                        } else {
+                            unknown
+                                .entry((p.ecosystem.clone(), why.to_owned()))
+                                .or_default()
+                                .push(label);
+                        }
                     }
                     for why in array(&row["unmatched"]).iter().filter_map(Value::as_str) {
                         unmatched.entry(why.to_owned()).or_default().push(format!(
@@ -811,7 +829,7 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
                 .iter()
                 .filter_map(|a| epss.get(a).copied())
                 .reduce(f64::max);
-            findings.push(json!({"key":crate::store::identity(&json!([aid,canonical]))?,"asset":aid,"title":format!("{} {}: {canonical}",p.name,p.version),"package":p,"advisory":canonical,"aliases":aliases,"kev":if have_kev{json!(!active_identifiers.is_disjoint(&kev))}else{Value::Null},"epss":score,"severity":severity,"fixed":fixed,"detail_status":if rs.iter().all(|r|r["detail_status"]=="deferred"){"deferred"}else{"complete"},"source_url":rs.iter().map(|r|format!("{OSV}/vulns/{}",string(r,"id"))).collect::<Vec<_>>(),"fetched_at":timestamp,"affected_ranges":ranges,"fixed_applicability":"candidate-versions-require-compatible-branch-and-rescan","alias_provenance":rs.iter().map(|r|json!({"id":r["id"],"aliases":r["aliases"],"withdrawn":r["withdrawn"]})).collect::<Vec<_>>(),"published":published}));
+            findings.push(json!({"key":crate::store::identity(&json!([aid,canonical]))?,"asset":aid,"title":format!("{} {}: {canonical}",p.name,p.version),"package":p,"advisory":canonical,"aliases":aliases,"kev":if have_kev{json!(!active_identifiers.is_disjoint(&kev))}else{Value::Null},"epss":score,"severity":severity,"fixed":fixed,"detail_status":if rs.iter().all(|r|r["detail_status"]=="deferred"){"deferred"}else{"complete"},"source_url":rs.iter().map(|r|format!("{OSV}/vulns/{}",string(r,"id"))).collect::<Vec<_>>(),"fetched_at":timestamp,"affected_ranges":ranges,"fixed_applicability":"candidate-versions-require-compatible-branch-and-rescan","alias_provenance":rs.iter().map(|r|json!({"id":r["id"],"aliases":r["aliases"],"withdrawn":r["withdrawn"]})).collect::<Vec<_>>(),"published":published,"summary":rs.iter().find_map(|r|r["summary"].as_str())}));
             if let (Some(label), Some(f)) = (advisory_severity, findings.last_mut()) {
                 f["advisory_severity"] = json!(label);
             }
@@ -882,6 +900,19 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
         let unchecked = assets.iter().filter(|a| !covered.contains(*a)).count();
         errors.push(json!({"source":"feed-budget","error":format!("Feed time budget ran out: {unchecked} of {} packages were not fully checked; the result is unknown, not clean", assets.len())}));
     }
+    let (by_design, errors): (Vec<_>, Vec<_>) = errors.into_iter().partition(|e| {
+        e["not_assessed"] == true || string(e, "error").contains(super::osvdb::NEEDS_NETWORK)
+    });
+    for e in by_design {
+        not_assessed
+            .entry((string(&e, "source").into(), string(&e, "error").into()))
+            .or_default()
+            .extend(e["package"].as_str().map(str::to_owned));
+    }
+    let not_assessed: Vec<_> = not_assessed
+        .into_iter()
+        .map(|((source, reason), packages)| json!({"source":source,"reason":reason,"packages":packages}))
+        .collect();
     for f in &mut findings {
         // An upstream version match on a binary an OS package owns: the distro may have
         // backported the fix, which Vorda cannot see.
@@ -900,7 +931,7 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
         .collect();
     let cve_re = regex::Regex::new(r"CVE-\d{4}-\d+").unwrap();
     let notes:Vec<_>=enrichment.get("releases").map(|r|array(&r["feed"]["entry"]).iter().map(|e|json!({"title":e["title"]["$t"],"updated":e["updated"]["$t"],"cves":cve_re.find_iter(string(&e["content"],"$t")).map(|m|m.as_str()).collect::<BTreeSet<_>>()})).collect()).unwrap_or_default();
-    let mut result = json!({"findings":findings.into_values().collect::<Vec<_>>(),"audit":audit,"resolutions":resolutions,"covered":covered,"errors":errors,"sources":sources,"packages":packages,"browser_fixed_version":enrichment.get("cft").map(|v|v["channels"]["Stable"]["version"].clone()).unwrap_or(Value::Null),"chrome_release_notes":notes});
+    let mut result = json!({"findings":findings.into_values().collect::<Vec<_>>(),"audit":audit,"resolutions":resolutions,"covered":covered,"errors":errors,"sources":sources,"packages":packages,"not_assessed":not_assessed,"browser_fixed_version":enrichment.get("cft").map(|v|v["channels"]["Stable"]["version"].clone()).unwrap_or(Value::Null),"chrome_release_notes":notes});
     if fetch.local_db() {
         result["advisory_source"] = json!("offline-db");
         result["warnings"] = json!(warnings);

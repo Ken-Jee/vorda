@@ -5,7 +5,7 @@ Cargo.lock, including target-specific and build-time dependencies. Not every lis
 crate is linked on every platform. Original license and notice files are retained
 verbatim, deduplicated by SHA-256. License alternatives remain alternatives.
 
-Cargo.lock SHA-256: `6250492697d49079508e018e0e784d6a6c341fd86ea2a623f2181c64aae8272f`. Regenerate this inventory when the lockfile changes.
+Cargo.lock SHA-256: `f2d98ed1a925c1f96ca088c916a418587bb47c462e14750e5e07289cc673650a`. Regenerate this inventory when the lockfile changes.
 The winapi GNU shim crates omit full license files in their published archives; their
 original source attribution is retained with the same-project winapi 0.3.9 license texts.
 rsqlite-vfs publishes no license file; it is listed with the same-project sqlite-wasm-rs license text.

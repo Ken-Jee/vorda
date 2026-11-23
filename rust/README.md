@@ -8,8 +8,10 @@ The public advisory site is separate from private inventory.
 Build with `cargo build --locked --release --bin vorda`. The resulting native
 executable does not require Python. Run `vorda --help` for commands. GitHub
 Releases provides static Linux executables (x86_64 and arm64, musl with OpenSSL
-compiled in) with SHA-256 checksums. macOS and Windows build from source for
-now. Release and development builds are not signed yet.
+compiled in) with SHA-256 checksums and minisign signatures. macOS and Windows
+build from source for now. Release executables from v0.2.0 on are signed with
+the Vorda release key (minisign, key ID `57E5204A70E3811B`). Development builds
+you compile yourself are not signed. See `../docs/install.md` for verifying.
 
 - MCP Registry name: mcp-name: io.github.Ken-Jee/vorda
 

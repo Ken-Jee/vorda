@@ -309,7 +309,10 @@ pub fn capture(s: &mut Store, request: &[u8]) -> Result<Value> {
         .map(|k| binding[*k].clone())
         .collect::<Vec<_>>()));
     let root = Path::new(text(&envelope, "root")?);
-    if !root.is_absolute() || root.canonicalize()? != root {
+    if !root.is_absolute() || {
+        root.canonicalize()?;
+        !crate::cli::resolved(root).is_ok_and(|r| r == root)
+    } {
         return Err(err("invalid_capture_root"));
     }
     input::refuse_links(root)?;

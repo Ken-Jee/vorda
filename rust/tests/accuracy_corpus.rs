@@ -144,7 +144,7 @@ fn every_corpus_project_gets_its_recorded_verdict_offline() {
                         }
                     }
                     // osv-scanner's count, less the packages Vorda reports by design and it
-                    // does not: equal for a finished scan, at most that for an unknown one.
+                    // does not: equal for a finished scan, at most that for an incomplete one.
                     let beyond = want.get("beyond_osv").and_then(Value::as_array);
                     let counted = result["findings"]
                         .as_array()
@@ -154,7 +154,8 @@ fn every_corpus_project_gets_its_recorded_verdict_offline() {
                         .count() as u64;
                     let osv_disagrees = want.get("osv_groups").is_some_and(|osv| {
                         let osv = osv.as_u64().unwrap();
-                        if code == 2 {
+                        // A scan that refused a file may report fewer, never more.
+                        if got["refused"] != json!([]) || code == 2 {
                             counted > osv
                         } else {
                             counted != osv

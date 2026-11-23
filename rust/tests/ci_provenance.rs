@@ -47,7 +47,7 @@ fn manifest_records_exact_source_packages_and_package_bytes() {
         manifest["rustc"],
         String::from_utf8(rustc.stdout).unwrap().trim()
     );
-    assert_eq!(manifest["schema"], "vorda-private-candidate-v1");
+    assert_eq!(manifest["schema"], "vorda-candidate-v1");
     assert_eq!(manifest["target"], "x86_64-unknown-linux-gnu");
     assert_eq!(manifest["profile"], "release");
     assert_eq!(manifest["run_id"], "123");

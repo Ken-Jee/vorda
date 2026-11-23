@@ -96,20 +96,18 @@ fn dev_findings() -> Vec<Value> {
 #[test]
 fn dashboard_reports_nonurgent_open_findings_instead_of_all_clear() {
     let snapshot = snapshot(&dev_findings(), "ok");
-    let page = views::now_screen(&snapshot);
-    assert!(!page.contains("All clear"), "{page}");
-    assert!(page.contains("0 urgent"), "{page}");
-    assert!(page.contains("3 open"), "{page}");
-    assert!(page.contains("test or fixture folders"), "{page}");
+    let page = views::overview_screen(&snapshot);
+    assert!(!page.contains("Nothing needs attention"), "{page}");
+    assert!(page.contains("3 items need attention"), "{page}");
+    assert!(page.contains("3 are likely dev only"), "{page}");
     assert!(page.contains("href=\"/findings\""), "{page}");
 }
 
 #[test]
 fn host_card_does_not_call_nonurgent_open_findings_fine() {
     let snapshot = snapshot(&dev_findings(), "ok");
-    let page = views::now_screen(&snapshot);
-    assert!(!page.contains(">Fine<"), "{page}");
-    assert!(!page.contains("word ok"), "{page}");
+    let page = views::overview_screen(&snapshot);
+    assert!(page.contains(">3 need attention<"), "{page}");
 }
 
 #[test]
@@ -122,10 +120,14 @@ fn dashboard_json_health_warns_about_nonurgent_open_findings() {
 #[test]
 fn nonurgent_open_counts_remain_visible_when_scan_is_unknown() {
     let snapshot = snapshot(&dev_findings(), "unknown");
-    let page = views::now_screen(&snapshot);
-    assert!(!page.contains("All clear"), "{page}");
-    assert!(page.contains("0 urgent, 3 open"), "{page}");
+    let page = views::overview_screen(&snapshot);
+    assert!(!page.contains("Nothing needs attention"), "{page}");
+    assert!(page.contains("3 items need attention"), "{page}");
     assert!(page.contains("Scan failed"), "{page}");
+    assert!(
+        page.contains("A clean result cannot be confirmed"),
+        "{page}"
+    );
 }
 
 #[test]
@@ -136,20 +138,22 @@ fn low_severity_runtime_findings_are_open_without_dev_folder_claims() {
         finding["priority"]["level"] = json!("low");
     }
     let snapshot = snapshot(&findings, "ok");
-    let page = views::now_screen(&snapshot);
-    assert!(!page.contains("All clear"), "{page}");
-    assert!(!page.contains("test or fixture folders"), "{page}");
-    assert!(page.contains("0 urgent, 3 open"), "{page}");
+    let page = views::overview_screen(&snapshot);
+    assert!(!page.contains("likely dev only"), "{page}");
+    assert!(!page.contains("Nothing needs attention"), "{page}");
+    assert!(page.contains("3 items need attention"), "{page}");
     assert_eq!(snapshot["hosts"][0]["health"], "warning");
 }
 
 #[test]
 fn all_clear_requires_zero_open_findings_and_known_scan_status() {
     let known = snapshot(&[], "ok");
-    assert!(views::now_screen(&known).contains("All clear"));
+    assert!(views::overview_screen(&known).contains("Nothing needs attention"));
     assert_eq!(known["hosts"][0]["health"], "good");
     let unknown = snapshot(&[], "unknown");
-    assert!(!views::now_screen(&unknown).contains("All clear"));
+    let page = views::overview_screen(&unknown);
+    assert!(!page.contains("Nothing needs attention"), "{page}");
+    assert!(page.contains("Scan coverage is incomplete"), "{page}");
     assert_eq!(unknown["hosts"][0]["health"], "warning");
 }
 
@@ -203,28 +207,95 @@ fn offline_snapshot(open: usize) -> Value {
 #[test]
 fn offline_feed_errors_are_unknown_instead_of_open_findings() {
     let snapshot = offline_snapshot(0);
-    let home = views::now_screen(&snapshot);
+    let home = views::overview_screen(&snapshot);
     let findings = views::render(&snapshot, "findings", "", "all", "", "", false).unwrap();
-    assert!(findings.contains("Open findings</div><div class=\"hero\">0</div>"));
-    assert!(home.contains("<span>Can't confirm</span>"), "{home}");
-    assert!(!home.contains("0 urgent, 2 open"), "{home}");
-    assert!(!home.contains("All clear"), "{home}");
-    assert!(!home.contains(">Fine<"), "{home}");
+    assert!(
+        findings.contains("All findings<span class=\"n\">0</span>"),
+        "{findings}"
+    );
+    assert!(home.contains("Scan coverage is incomplete"), "{home}");
+    assert!(home.contains("Coverage is partial on"), "{home}");
+    assert!(!home.contains("items need attention"), "{home}");
+    assert!(!home.contains("Nothing needs attention"), "{home}");
 }
 
 #[test]
 fn saved_findings_and_offline_errors_have_the_same_open_count_on_both_pages() {
     let snapshot = offline_snapshot(4);
-    let home = views::now_screen(&snapshot);
+    let home = views::overview_screen(&snapshot);
     let findings = views::render(&snapshot, "findings", "", "all", "", "", false).unwrap();
     assert!(
-        findings.contains("Open findings</div><div class=\"hero\">4</div>"),
+        findings.contains("All findings<span class=\"n\">4</span>"),
         "{findings}"
     );
-    assert!(home.contains("0 urgent, 4 open"), "{home}");
-    assert!(home.contains("<span>Can't confirm</span>"), "{home}");
-    assert!(!home.contains("6 open"), "{home}");
-    assert!(!home.contains("All clear"), "{home}");
+    assert!(home.contains("4 items need attention"), "{home}");
+    assert!(home.contains("Coverage is partial on"), "{home}");
+    assert!(!home.contains("6 items"), "{home}");
+    assert!(!home.contains("Nothing needs attention"), "{home}");
+}
+
+#[test]
+fn findings_tabs_keep_scan_health_out_of_the_finding_list() {
+    let snapshot = offline_snapshot(4);
+    let issues = snapshot["issues"].as_array().unwrap();
+    let finding = issues.iter().find(|i| i["type"] != "health").unwrap();
+    let health: Vec<_> = issues
+        .iter()
+        .filter(|i| i["type"] == "health")
+        .map(|i| i["title"].as_str().unwrap())
+        .collect();
+    let page = |tab: &str| views::render(&snapshot, "findings", "", tab, "", "", false).unwrap();
+    let all = page("all");
+    assert!(
+        all.contains("Known exploited<span class=\"n\">0</span>"),
+        "{all}"
+    );
+    assert!(
+        all.contains("Needs review<span class=\"n\">0</span>"),
+        "{all}"
+    );
+    assert!(all.contains("Prioritized findings"), "{all}");
+    let coverage = page("coverage");
+    assert!(
+        coverage.contains("Coverage is part of the result"),
+        "{coverage}"
+    );
+    for title in &health {
+        assert!(!all.contains(title), "{title} in {all}");
+        assert!(coverage.contains(title), "{title} missing from {coverage}");
+    }
+    assert!(
+        !coverage.contains(finding["title"].as_str().unwrap()),
+        "{coverage}"
+    );
+    assert!(page("kev").contains("No known-exploited findings"));
+    assert!(page("review").contains("Nothing needs review"));
+}
+
+#[test]
+fn a_finding_link_opens_its_evidence_beside_the_list() {
+    let snapshot = offline_snapshot(1);
+    let issue = snapshot["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["type"] != "health")
+        .unwrap();
+    let id = issue["id"].as_str().unwrap();
+    let page = views::render(&snapshot, "finding", id, "all", "", "", false).unwrap();
+    assert!(page.contains("listrow sel"), "{page}");
+    assert!(page.contains("ADV-0"), "{page}");
+    assert!(page.contains("Likely dev only"), "{page}");
+    assert!(
+        page.contains("Not on the CISA known exploited list"),
+        "{page}"
+    );
+    let dir = Path::new(issue["path"].as_str().unwrap()).parent().unwrap();
+    assert!(
+        page.contains(&format!("data-copy=\"vorda scan {}\"", dir.display())),
+        "{page}"
+    );
+    assert!(views::render(&snapshot, "finding", "gone", "all", "", "", false).is_none());
 }
 
 #[test]
@@ -238,7 +309,7 @@ fn grouped_libraries_do_not_promise_a_single_file_edit() {
             "priority":{"level":"critical"},"fixed":["1.0.1"],"kev":false})
         })
         .collect();
-    let home = views::now_screen(&snapshot(&findings, "ok"));
+    let home = views::overview_screen(&snapshot(&findings, "ok"));
     assert!(home.contains("2 libraries"), "{home}");
     assert!(!home.contains("One file edit"), "{home}");
 }
@@ -260,7 +331,7 @@ fn system_packages_show_the_update_when_any_finding_names_a_fix() {
     let snapshot = snapshot(&findings, "ok");
     let fix = snapshot["issues"][0]["fix"].as_str().unwrap();
     assert_eq!(fix, "Run: sudo apt upgrade", "{:#}", snapshot["issues"]);
-    assert!(!views::now_screen(&snapshot).contains("No update yet"));
+    assert!(!views::overview_screen(&snapshot).contains("No update yet"));
 }
 
 #[test]
@@ -268,6 +339,6 @@ fn system_packages_without_a_known_fix_say_it_is_not_known() {
     let snapshot = snapshot(&[ubuntu_finding("CVE-2026-0002", &[])], "ok");
     let fix = snapshot["issues"][0]["fix"].as_str().unwrap();
     assert!(fix.starts_with("Fix not known yet"), "{fix}");
-    let page = views::now_screen(&snapshot);
+    let page = views::overview_screen(&snapshot);
     assert!(!page.contains("No update yet"), "{page}");
 }

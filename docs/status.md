@@ -5,13 +5,15 @@ Here is what is unfinished, experimental, or not covered yet. See the
 
 ## Release status
 
-v0.1.0 is the first public release. GitHub Releases provides unsigned static
-executables for Linux (x86_64 and arm64, musl with OpenSSL compiled in) with
-SHA-256 checksums, so `vorda verify-self` reports an unsigned copy. macOS and
-Windows build from source for now. See the [README](../README.md) to get
-started, [install](install.md) for installer options, manual checksum
-verification and source builds, and the [support matrix](support-matrix.md)
-for per-platform checks.
+v0.2.0 is the current release (the first signed release; v0.1.0 and
+v0.1.1 were unsigned). GitHub Releases provides signed static
+executables for Linux (x86_64 and arm64, musl with OpenSSL compiled in)
+with SHA-256 checksums and minisign signatures (key ID
+`57E5204A70E3811B`), so `vorda verify-self` reports `verified` after
+install. macOS and Windows build from source for now. See the
+[README](../README.md) to get started, [install](install.md) for
+installer options, manual verification and source builds, and the
+[support matrix](support-matrix.md) for per-platform checks.
 
 ## What a result means
 
@@ -44,8 +46,12 @@ Usage errors exit 64 (EX_USAGE) and report JSON status `usage_error`. The GitHub
   exiting 2 in noninteractive runs when no database is installed (see
   [cli.md](cli.md#offline-advisory-database-and-defaults) for precedence and setup).
   MCP `check` also defaults to the local offline advisory database with no automatic
-  network fallback. `scan --offline-db` covers npm, PyPI, crates.io and Go. Other
-  ecosystems, `--os-packages`, `--tools`, and `--browsers` stay unknown offline, and
+  network fallback. `scan --offline-db` covers npm, PyPI, crates.io, and Go. Other
+  ecosystems, `--os-packages`, and `--tools` go in `not_assessed` offline, so they
+  do not make a scan unknown on their own. They set `coverage_evidence.status` to
+  `partial`, and `--online` checks them. Browser feeds that need the network also
+  go in `not_assessed`, but `--browsers` stays unknown with no findings, online and
+  offline, because Chrome data covers only the latest 119 publication days. Offline,
   EPSS is skipped. `vorda agentbom` is online by default and uses the local database
   only when `VORDA_ADVISORIES` or `config.json` sets `offline-db`. MCP `agent_check`
   is also online by default unless the call sets `offline: true`, or
@@ -65,8 +71,7 @@ Usage errors exit 64 (EX_USAGE) and report JSON status `usage_error`. The GitHub
   Ubuntu CVE tracker (active, then retired if missing), dropping not-affected and DNE
   entries and comparing released fixes with dpkg ordering. Missing, malformed, or
   unreadable rows (including Ubuntu 20.04 focal ESM-prefixed rows) report unknown.
-  OS-package scans are unknown offline (they do not use the tracker and need online
-  mode). See [source authority](reference.md#source-authority).
+  In offline scans, OS-package feeds that need the network are listed under `not_assessed` instead of making the scan `unknown`. Checking OS packages requires online mode. See [source authority](reference.md#source-authority).
 - **`vorda agentbom`** (MCP servers, skills, agent CLIs, IDE extensions, models) is a
   preview with incomplete coverage handling. See
   [agent inventory](reference.md#agent-inventory-preview-known-coverage-limits).

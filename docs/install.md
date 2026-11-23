@@ -1,6 +1,6 @@
 # Install Vorda
 
-Vorda runs as a native Rust executable without Python. Release v0.1.0 ships static Linux executables (x86_64 and arm64, musl with OpenSSL compiled in) with SHA-256 checksums on [GitHub Releases](https://github.com/Ken-Jee/vorda/releases). They are not signed yet. macOS and Windows have no release builds yet; build from source for now. See the [support matrix](support-matrix.md) for platform checks and limits.
+Vorda runs as a native Rust executable without Python. Release v0.2.0 ships signed static Linux executables (x86_64 and arm64, musl with OpenSSL compiled in) with SHA-256 checksums and minisign signatures (key ID `57E5204A70E3811B`) on [GitHub Releases](https://github.com/Ken-Jee/vorda/releases). macOS and Windows have no release builds yet; build from source for now. See the [support matrix](support-matrix.md) for platform checks and limits.
 
 ## Install a release
 
@@ -10,18 +10,47 @@ Linux (x86_64 or arm64):
 curl -fsSL https://github.com/Ken-Jee/vorda/releases/latest/download/install.sh | sh
 ```
 
-The script downloads `SHA256SUMS` and the executable for your Linux CPU from the release, checks the SHA-256 checksum, and installs it to `~/.local/bin/vorda`. On any other system it stops with a message and installs nothing. If the checksum does not match, it installs nothing. If the install folder is not on `PATH`, the script adds one `export PATH=...` line to your shell profile (`~/.zshrc` for zsh, `~/.bashrc` for bash, or `~/.profile` otherwise), only once, and tells you to open a new terminal window; for fish, it edits nothing and prints the `fish_add_path` command instead. Set `VORDA_NO_MODIFY_PATH=1` to skip editing your profile and print the line instead. Set `VORDA_INSTALL_DIR` to pick another folder, or `VORDA_VERSION=0.1.0` to pin a release instead of the latest.
+The script downloads `SHA256SUMS` and the executable for your Linux CPU from the release, checks the SHA-256 checksum, and installs it to `~/.local/bin/vorda`. If `minisign` is on `PATH`, it also requires and verifies `SHA256SUMS.minisig` and the executable's `.minisig` with the embedded Vorda release public key (key ID `57E5204A70E3811B`) before installing; if either signature file cannot be downloaded or fails verification, it installs nothing and exits with status 1. Without `minisign`, it checks the SHA-256 checksum only. When the release includes an executable `.minisig`, the script saves it beside the installed binary as `vorda.minisig` so `vorda verify-self` reports `verified` right after install. On any other system, or if the checksum does not match, it stops with a message and installs nothing. If the install folder is not on `PATH`, the script adds one `export PATH=...` line to your shell profile (`~/.zshrc` for zsh, `~/.bashrc` for bash, or `~/.profile` otherwise), only once, and tells you to open a new terminal window; for fish, it edits nothing and prints the `fish_add_path` command instead. It ends by printing `Next: run vorda setup ...` and does not run setup itself. Set `VORDA_NO_MODIFY_PATH=1` to skip editing your profile and print the line instead. Set `VORDA_INSTALL_DIR` to pick another folder, or `VORDA_VERSION=0.2.0` to pin a release instead of the latest (releases `v0.1.0` and `v0.1.1` have no `.minisig` files, so pinning them fails when `minisign` is on `PATH`; they can still be installed on a machine without `minisign`, or downloaded by hand). Set `VORDA_INSTALL_FROM=DIR` (such as `VORDA_INSTALL_FROM=./downloads sh install.sh`) to install from a local folder holding `SHA256SUMS` and the release executables without `curl` or `wget`; it still checks the checksum, and when `minisign` is on `PATH` the folder must also hold `SHA256SUMS.minisig` and the executable's `.minisig`, so you can test before a release is online or install without internet.
 
-To inspect everything before running it, download the executable (`vorda-0.1.0-x86_64-unknown-linux-musl` or `vorda-0.1.0-aarch64-unknown-linux-musl`) and `SHA256SUMS` from `https://github.com/Ken-Jee/vorda/releases`, then run:
+To inspect everything before running it, download the executable (`vorda-0.2.0-x86_64-unknown-linux-musl` or `vorda-0.2.0-aarch64-unknown-linux-musl`), its `.minisig` file, `SHA256SUMS`, and `SHA256SUMS.minisig` from `https://github.com/Ken-Jee/vorda/releases`, then run:
 
 ```sh
+minisign -Vm SHA256SUMS -P RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG
+minisign -Vm vorda-0.2.0-x86_64-unknown-linux-musl -P RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG
 sha256sum --check --ignore-missing SHA256SUMS
-install -D -m 755 vorda-0.1.0-x86_64-unknown-linux-musl ~/.local/bin/vorda
+install -D -m 755 vorda-0.2.0-x86_64-unknown-linux-musl ~/.local/bin/vorda
+cp vorda-0.2.0-x86_64-unknown-linux-musl.minisig ~/.local/bin/vorda.minisig
 ```
 
-Use the `aarch64` filename on arm64. The static Linux executables need no system libraries and no Python. Release executables are not signed yet (SHA-256 checksums only), so `vorda verify-self` reports them as unsigned.
+Use the `aarch64` filename on arm64. The static Linux executables need no system libraries and no Python, and placing `vorda.minisig` beside the executable lets `vorda verify-self` report `verified`.
 
 macOS and Windows have no release builds yet; build from source below.
+
+## Update
+
+```sh
+vorda update            # update to the latest signed release
+vorda update --check    # check for a newer release without changing anything
+vorda update --version 0.2.0
+```
+
+`vorda update` updates this executable from [GitHub Releases](https://github.com/Ken-Jee/vorda/releases) using only the release public key built into the running binary:
+
+1. **Verify the signed manifest.** Vorda downloads `SHA256SUMS` and `SHA256SUMS.minisig` from the latest release (or from `--version VERSION`; a leading `v` is fine) and checks the minisign signature against the built-in Vorda release public key (key ID `57E5204A70E3811B`). No key file, URL, or environment variable can change which key is trusted.
+2. **Select the platform build and check the version.** Vorda finds this platform's release build in `SHA256SUMS` (on Linux, the static build `vorda-VERSION-x86_64-unknown-linux-musl` or `vorda-VERSION-aarch64-unknown-linux-musl`). Without `--version`, it only installs a version newer than the running executable; if the running version is the same or newer, it reports that and changes nothing. With `--version`, it installs that release even if it is older (a deliberate downgrade). `--check` stops here, reports whether a newer version is available, changes nothing, and exits 0.
+3. **Verify the downloaded executable.** Vorda downloads the executable, checks its SHA-256 against the signed line in `SHA256SUMS`, and checks the executable's own `.minisig` signature against the same built-in key.
+4. **Swap into place and self-check.** Vorda writes the new executable beside the current one and renames it into place, so the executable is never missing or half-written. The previous executable is kept as `vorda.old` in the same folder (`vorda.exe.old` on Windows), and the release signature is saved beside the new executable as `vorda.minisig` so `vorda verify-self` reports it as verified afterwards. Vorda then runs the new executable with `--version`; if it fails to run or does not print the expected version, Vorda puts the previous executable back and exits 2.
+5. **Refresh the offline database when saved.** After the executable step (including when already up to date, except with `--check`), if offline mode is saved (`VORDA_ADVISORIES=offline-db` or `"advisories": "offline-db"` in `config.json`, as saved by `vorda setup`), Vorda prints a status line and runs `vorda db update` with the new executable, exiting with that command's exit code. Otherwise it exits 0.
+
+`vorda update` refuses to modify executables installed under package-manager paths (`/usr/bin/`, `/usr/lib/`, `/nix/store/`, `/snap/`, `/Cellar/`, `/opt/homebrew/`), development builds without a built-in release key, and unsigned releases. Errors exit 2 and leave the installed executable unchanged (or restored on rollback).
+
+**Upgrading from `v0.1.0` and `v0.1.1`.** Releases `v0.1.0` and `v0.1.1` are unsigned and do not include `vorda update`, and `vorda update` cannot install unsigned releases. Replace `v0.1.0` or `v0.1.1` once by re-running the install script:
+
+```sh
+curl -fsSL https://github.com/Ken-Jee/vorda/releases/latest/download/install.sh | sh
+```
+
+Once a signed release with `vorda update` is installed, future updates can run `vorda update`.
 
 ## Build from source
 
@@ -66,9 +95,9 @@ The installer verifies the staged bytes before replacing an existing regular fil
 
 ## Signing and verification
 
-**No signed release exists yet.** No release key has been created and `rust/release/vorda-release.pub` is still a placeholder, so every build reports `unsigned`.
+**Release key.** The Vorda release public key is committed in `rust/release/vorda-release.pub` (minisign key ID `57E5204A70E3811B`, key line `RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG`). Release `v0.2.0` is the first signed release: release executables embed this key so `vorda verify-self` checks `vorda.minisig` beside the executable against it. Plain `vorda verify-self` (no `--file`, no `--pubkey`) on a `v0.2.0` or newer executable with no `vorda.minisig` beside it reports `unsigned` (exit 2, detail "No signature beside this executable"). The earlier `v0.1.0` and `v0.1.1` executables were built before the key existed and have no `.minisig` files, so plain `vorda verify-self` run by those executables reports `unsigned` with the detail that the binary has no release key built in. A newer Vorda executable (with the key built in) checking an old download with `vorda verify-self --file FILE` and no `.minisig` beside it reports `tampered` (exit 1), because `--file` always requires a signature.
 
-**How a release is signed.** Running the "Rust release candidate" workflow manually with `SIGN` builds and checks the Linux package, installs a pinned minisign (version and SHA-256 in the workflow), and runs `rust/release/sign-native.sh`. The script signs each executable and `SHA256SUMS` in minisign's default prehashed format and verifies every signature against the committed `rust/release/vorda-release.pub`. The workflow uploads `FILE.minisig` beside the artifacts. If either secret is missing, the committed key is still a placeholder, or the keys do not match, the job fails and uploads nothing. `BUILD` runs build-only mode (`unsigned-…` artifact, no signatures). Neither mode publishes a release.
+**How a release is signed.** Releases are signed locally on the maintainer's machine rather than in the release workflow. After each target's package is built (for example with the "Rust release candidate" workflow in `BUILD` mode, which produces unsigned artifacts, or `rust/release/build-native.sh`), `rust/release/combine-native.sh` checks every `vorda-*` executable against its own package's `SHA256SUMS`, refuses mismatches or duplicate executable names, copies the executables and `install.sh` into a new output directory (leaving no output directory on failure), and writes one combined `SHA256SUMS` without signing or publishing. `rust/release/sign-native.sh` then signs that combined directory with minisign in its default prehashed format (producing a `.minisig` for each executable and one `SHA256SUMS.minisig`) and verifies every signature against the committed `rust/release/vorda-release.pub`. The secret key and its password live only in the maintainer's secret store (not in the repository or as workflow secrets) and are supplied only for the signing run. If the public key is a placeholder, the secrets are missing, or any verification check fails, `sign-native.sh` fails and leaves no temporary key file or signatures behind. Everything in the signed directory (executables, their `.minisig` files, `install.sh`, `SHA256SUMS`, and `SHA256SUMS.minisig`) is attached to the `vVERSION` release. The workflow's `SIGN` mode has no signing secrets configured, so it fails closed and uploads nothing. Neither workflow mode publishes a release.
 
 **How you verify.** Get the release public key from the repo (`rust/release/vorda-release.pub`) or another trusted source, never the download. Then verify with minisign or a Vorda executable you already trust:
 
@@ -83,7 +112,7 @@ A release executable embeds the release public key. Plain `vorda verify-self` ch
 
 Usage errors exit 64 (EX_USAGE) and report JSON status `usage_error`.
 
-Exit codes: 0 verified; 1 tampered, wrong key, or missing signature required by `--pubkey`; 2 unsigned (no built-in release key, or no signature beside the executable) or unverified (the `--pubkey` or `--file` path is missing, a folder, or unreadable; the detail names it). A readable file that is not a valid key reports tampered. Unsigned never reports verified. The native verifier checks executable bytes; Python package-file and bytecode checks do not apply.
+Exit codes: 0 verified; 1 tampered, wrong key, or a missing signature required by `--pubkey` or `--file`; 2 unsigned (an executable with no built-in release key, such as `v0.1.0` and `v0.1.1`, or plain `verify-self` with no signature beside the executable) or unverified (the `--pubkey` or `--file` path is missing, a folder, or unreadable; the detail names it). A readable file that is not a valid key reports tampered. Unsigned never reports verified. The native verifier checks executable bytes; Python package-file and bytecode checks do not apply.
 
 ## Distribution templates
 

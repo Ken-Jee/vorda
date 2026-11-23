@@ -92,7 +92,10 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
         crate::scanner::osvdb::configured_scan(state)?
     };
     let mut roots: Vec<String> = args.options("root").into_iter().map(String::from).collect();
-    if roots.is_empty() {
+    if args.flag("machine") && !roots.is_empty() {
+        return Err(Error::usage("--machine and --root cannot be combined"));
+    }
+    if roots.is_empty() && !args.flag("machine") {
         roots = previous["roots"]
             .as_array()
             .into_iter()
@@ -132,8 +135,11 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
         }
         config[key] = json!(args.flag(flag) || config[key].as_bool().unwrap_or(false));
     }
-    if install {
+    // A machine watch leaves the roots MCP may check as they were.
+    if install && !roots.is_empty() {
         config["roots"] = json!(roots);
+    }
+    if install {
         config["path"] = json!(search);
         atomic(&config_path, &config.to_string())?;
     }
@@ -316,7 +322,7 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
             }
         }
     }
-    let result = json!({"installed":install,"backend":backend,"files":paths,"roots":roots,
+    let result = json!({"installed":install,"backend":backend,"files":paths,"roots":roots,"machine":roots.is_empty(),
         "advisories":if offline_db { "offline-db" } else { "online" },
         "warnings":if install && offline_db { vec!["Scheduled offline-db scans never refresh the local advisory database automatically; run `vorda db update` daily before scheduled scans. Databases that are missing or older than 72 hours (adjustable via VORDA_ADVISORY_DB_MAX_AGE_HOURS) record unknown health messages and never fall back to the network. Reinstall with `--online` to explicitly send package names and versions to OSV.dev instead."] } else { vec![] }});
     atomic(&marker, &result.to_string())?;
@@ -392,10 +398,8 @@ mod tests {
     }
 }
 
-fn configured_roots(mut roots: Vec<String>) -> Result<Vec<String>> {
-    if roots.is_empty() {
-        roots.push(std::env::current_dir()?.to_string_lossy().into_owned());
-    }
+/// The project roots a watch scans; none means the scheduled check scans the machine.
+fn configured_roots(roots: Vec<String>) -> Result<Vec<String>> {
     roots
         .iter()
         .map(|root| crate::cli::resolved(Path::new(root)).map(|p| p.to_string_lossy().into_owned()))

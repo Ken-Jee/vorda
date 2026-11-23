@@ -262,8 +262,8 @@ fn an_editable_requirement_is_one_uncheckable_entry_beside_checked_pins() {
         ("PyPI", "django", "2.2.0"),
         Some("GHSA-fixture-editable"),
     );
-    assert_eq!(code, 2, "{data}");
-    assert_eq!(data["status"], "unknown", "{data}");
+    assert_eq!(code, 3, "{data}");
+    assert_eq!(data["status"], "vulnerable", "{data}");
     assert_eq!(packages(&data), ["PyPI:django@2.2.0"], "{data}");
     let errors = data["errors"].as_array().unwrap();
     assert_eq!(errors.len(), 1, "{data}");

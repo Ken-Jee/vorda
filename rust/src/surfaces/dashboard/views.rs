@@ -1,24 +1,16 @@
-use super::{data::scan_state, english::*};
+use super::{
+    english::*,
+    inventory::{inventory_screen, is_agent_tool, lockfiles},
+};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-const NAV: [(&str, &str, &str, &str); 9] = [
-    ("now", "/", "Now", "shield"),
-    ("hosts", "/hosts", "Hosts", "server"),
-    ("findings", "/findings", "Findings", "list"),
-    ("fixes", "/fixes", "Fixes", "check"),
-    ("agents", "/agents", "Agent tools", "bot"),
-    ("speed", "/speed", "Speed", "gauge"),
-    ("news", "/news", "News", "news"),
-    ("mailbox", "/mailbox", "Mailbox", "inbox"),
-    ("modes", "/modes", "Modes", "sliders"),
-];
-const FILTERS: [(&str, &str); 6] = [
-    ("all", "All"),
-    ("kev", "Exploited"),
-    ("browser", "Browsers"),
-    ("os", "System"),
-    ("library", "Projects"),
-    ("agent", "Agents"),
+const NAV: [(&str, &str, &str, &str); 6] = [
+    ("overview", "/", "Overview", "overview"),
+    ("findings", "/findings", "Findings", "findings"),
+    ("inventory", "/inventory", "Inventory", "inventory"),
+    ("inbox", "/inbox", "Inbox", "inbox"),
+    ("repairs", "/repairs", "Repairs", "repairs"),
+    ("policy", "/policy", "Policy", "policy"),
 ];
 pub fn e(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -33,7 +25,7 @@ pub fn capitalize(s: &str) -> String {
         .map(|first| first.to_uppercase().collect::<String>() + c.as_str())
         .unwrap_or_default()
 }
-fn icon(name: &str) -> String {
+pub(super) fn icon(name: &str) -> String {
     static ICONS: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
     let icons = ICONS.get_or_init(|| serde_json::from_str(include_str!("icons.json")).unwrap());
     format!(
@@ -56,107 +48,28 @@ pub fn ago(ts: f64, now: f64) -> String {
         format!("{} d ago", (d / 86400.) as u64)
     }
 }
-fn span(seconds: Option<f64>) -> String {
-    let Some(s) = seconds else {
-        return "-".into();
-    };
-    if s < 3600. {
-        format!("{} min", (s / 60.).round().max(1.))
-    } else if s < 86400. {
-        format!("{:.1} h", s / 3600.)
-    } else {
-        format!("{:.1} d", s / 86400.)
-    }
-}
-pub fn page(active: &str, title: &str, body: &str, nonce: &str) -> String {
-    let mut side = String::new();
-    let mut tabs = String::new();
-    for (key, href, label, ic) in NAV {
-        let current = if key == active {
-            " aria-current=\"page\""
-        } else {
-            ""
-        };
-        side.push_str(&format!(
-            "<a href=\"{href}\"{current}>{}{label}</a>",
-            icon(ic)
-        ));
-        if ["now", "hosts", "findings", "fixes"].contains(&key) {
-            tabs.push_str(&format!(
-                "<a href=\"{href}\"{current}>{}<span class=\"vh\">{label}</span></a>",
+pub fn page(active: &str, title: &str, body: &str, nonce: &str, foot: &str) -> String {
+    let nav: String = NAV
+        .iter()
+        .map(|(key, href, label, ic)| {
+            let current = if *key == active {
+                " aria-current=\"page\""
+            } else {
+                ""
+            };
+            format!(
+                "<a href=\"{href}\"{current}>{}<span>{label}</span></a>",
                 icon(ic)
-            ));
-        }
-    }
-    let more = if ["now", "hosts", "findings", "fixes"].contains(&active) {
-        ""
-    } else {
-        " aria-current=\"page\""
-    };
-    format!("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><meta name=\"color-scheme\" content=\"light dark\"><meta name=\"referrer\" content=\"no-referrer\"><title>{} · vorda</title><link rel=\"icon\" href=\"{}\"><style nonce=\"{}\">{}</style><script nonce=\"{}\">{}</script></head><body><div class=\"shell\"><nav class=\"side\" aria-label=\"Main\"><div class=\"brand\">{}vorda</div>{side}<button class=\"theme\" type=\"button\">{}Theme</button></nav><main><div class=\"in\">{body}</div></main></div><nav class=\"tabs\" aria-label=\"Main\"><div class=\"pill\">{tabs}</div><a class=\"round\" href=\"/more\"{more}>{}<span class=\"vh\">More</span></a></nav><div id=\"tip\" role=\"tooltip\"></div></body></html>",e(title),include_str!("favicon.txt"),e(nonce),include_str!("style.css"),e(nonce),include_str!("script.js"),icon("logo"),icon("moon"),icon("more"))
+            )
+        })
+        .collect();
+    format!("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"referrer\" content=\"no-referrer\"><title>{} · vorda</title><link rel=\"icon\" href=\"{}\"><style nonce=\"{}\">{}</style><script nonce=\"{}\">{}</script></head><body><div class=\"shell\"><nav class=\"side\" aria-label=\"Main\"><div class=\"logo\">vorda<span>.</span></div><div class=\"nav\">{nav}</div>{foot}</nav><main><div class=\"in\">{body}</div></main></div><div id=\"tip\" role=\"tooltip\"></div></body></html>",e(title),include_str!("favicon.txt"),e(nonce),include_str!("style.css"),e(nonce),include_str!("script.js"))
 }
 pub fn copy_cmd(cmd: &str) -> String {
     format!("<code class=\"cmd\">{0}</code><button class=\"b copy\" type=\"button\" data-copy=\"{0}\">Copy</button>",e(cmd))
 }
 pub fn empty(line: &str, action: &str) -> String {
     format!("<div class=\"card empty\"><div class=\"title\">{}</div><div class=\"meta\">{action}</div></div>",e(line))
-}
-#[allow(clippy::too_many_arguments)] // argument list mirrors the report fields; a params struct would only move them
-fn row(
-    href: &str,
-    ic: &str,
-    state: &str,
-    title: &str,
-    meta: &str,
-    tone: &str,
-    end: &str,
-    tag: &str,
-) -> String {
-    let attrs = if tag == "a" {
-        format!(" href=\"{}\"", e(href))
-    } else {
-        String::new()
-    };
-    let line = [state, meta]
-        .into_iter()
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join(" · ");
-    let mt = if line.is_empty() {
-        String::new()
-    } else {
-        format!("<span class=\"meta\">{line}</span>")
-    };
-    let chev = if tag == "div" {
-        String::new()
-    } else {
-        format!("<span class=\"chev\">{}</span>", icon("chev"))
-    };
-    format!("<{tag} class=\"row\"{attrs}><span class=\"ico {tone}\">{}</span><span class=\"body\"><span class=\"title\">{}</span>{mt}</span>{end}{chev}</{tag}>",icon(ic),e(title))
-}
-fn capped(items: Vec<String>) -> String {
-    if items.len() <= 7 {
-        format!("<div class=\"rows\">{}</div>", items.join(""))
-    } else {
-        format!(
-            "<div class=\"rows\">{}<details>{}{}</details></div>",
-            items[..7].join(""),
-            row(
-                "",
-                "more",
-                "",
-                &format!("{} more", items.len() - 7),
-                "",
-                "",
-                "",
-                "summary"
-            ),
-            items[7..].join("")
-        )
-    }
-}
-fn plural(n: usize, one: &str) -> String {
-    format!("{n} {one}{}", if n == 1 { "" } else { "s" })
 }
 fn host(name: &str) -> String {
     format!("<span class=\"nw\">{}</span>", e(name))
@@ -171,17 +84,6 @@ fn type_icon(t: &str) -> &str {
         "health" => "pulse",
         _ => "list",
     }
-}
-fn issue_state(i: &Value) -> String {
-    format!(
-        "{} · {}",
-        host(s(i, "host")),
-        if i["kev"] == true {
-            "<span class=\"crit\">Exploited</span>".into()
-        } else {
-            e(s(i, "eyebrow"))
-        }
-    )
 }
 fn advice(i: &Value) -> String {
     if i["draft"].is_object() {
@@ -209,82 +111,6 @@ fn advice(i: &Value) -> String {
         }
     )
 }
-fn issue_row(i: &Value, action: bool) -> String {
-    let draft = &i["draft"];
-    let href = if draft.is_object() {
-        format!("/review/{}", s(draft, "id"))
-    } else {
-        format!("/finding/{}", s(i, "id"))
-    };
-    if draft.is_object() && action {
-        return row(
-            &href,
-            "key",
-            &format!("{} · Ready to approve", host(s(i, "host"))),
-            s(draft, "title"),
-            &versions(draft),
-            "",
-            "<span class=\"go\">Review</span>",
-            "a",
-        )
-        .replacen("class=\"row\"", "class=\"row act\"", 1);
-    }
-    let advice = advice(i);
-    let meta = if action {
-        capitalize(advice.strip_prefix("Advice: ").unwrap_or(&advice))
-    } else {
-        advice
-    };
-    let effort = if s(i, "fix").starts_with("No fixed version") {
-        "No fix yet"
-    } else {
-        match s(i, "type") {
-            "browser" => "About a minute",
-            "os" => "One command",
-            "mcp" | "cli" => "One update",
-            "skill" => "One switch",
-            _ => "",
-        }
-    };
-    let end = if action && !effort.is_empty() {
-        format!("<span class=\"fig\">{}</span>", e(effort))
-    } else {
-        String::new()
-    };
-    if action && i["mode"] == "watch" {
-        return row(
-            &href,
-            type_icon(s(i, "type")),
-            &format!("{} · Alert only", host(s(i, "host"))),
-            s(i, "title"),
-            &e(s(i, "why")),
-            "",
-            "",
-            "a",
-        )
-        .replacen("class=\"row\"", "class=\"row act\"", 1);
-    }
-    let state = if action && i["kev"] != true {
-        format!("{} · Advice", host(s(i, "host")))
-    } else {
-        issue_state(i)
-    };
-    let rendered = row(
-        &href,
-        type_icon(s(i, "type")),
-        &state,
-        s(i, "title"),
-        &e(&meta),
-        if i["kev"] == true { "crit" } else { "" },
-        &end,
-        "a",
-    );
-    if action {
-        rendered.replacen("class=\"row\"", "class=\"row act\"", 1)
-    } else {
-        rendered
-    }
-}
 fn versions(d: &Value) -> String {
     format!(
         "<span class=\"nw m\">{}</span> → <span class=\"nw m\">{}</span>",
@@ -292,7 +118,7 @@ fn versions(d: &Value) -> String {
         e(s(d, "new"))
     )
 }
-fn scan_problem(h: &Value, now: f64) -> String {
+pub(super) fn scan_problem(h: &Value, now: f64) -> String {
     let problems = a(h, "problems");
     let count = (number(h, "problem_count") as usize).max(problems.len());
     if h["scan"] == "failed" && !problems.is_empty() {
@@ -337,113 +163,8 @@ fn coverage(hosts: &[Value], now: f64) -> String {
         .collect::<Vec<_>>()
         .join(" · ")
 }
-fn coverage_note(why: &str) -> String {
-    if why.is_empty() {
-        String::new()
-    } else {
-        format!("<div class=\"quiet\">{} {}</div>", icon("alert"), e(why))
-    }
-}
-fn spark(counts: &[f64]) -> String {
-    if counts.len() < 2 {
-        return String::new();
-    }
-    let top = counts.iter().copied().fold(1., f64::max);
-    let path = counts
-        .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            format!(
-                "{:.1} {:.1}",
-                i as f64 * 144. / (counts.len() - 1) as f64,
-                36. - c * 32. / top
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" L");
-    format!("<svg class=\"spark\" viewBox=\"0 0 144 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path class=\"ln\" d=\"M{path}\" vector-effect=\"non-scaling-stroke\"/></svg>")
-}
-fn machine_cards(snapshot: &Value) -> String {
-    let mut cards = String::new();
-    let now = number(snapshot, "now");
-    for h in a(snapshot, "hosts") {
-        let mine: Vec<_> = a(snapshot, "issues")
-            .iter()
-            .filter(|i| i["host"] == h["host"] && i["type"] != "health")
-            .collect();
-        let problem = scan_problem(h, now);
-        let kev = mine.iter().any(|i| i["kev"] == true);
-        let exploited = mine.iter().filter(|i| i["kev"] == true).count();
-        let ready = mine.iter().any(|i| i["draft"].is_object());
-        let need = mine.iter().filter(|i| i["needs"] == true).count();
-        let word = if kev {
-            "<span class=\"word crit\">Exploited</span>".into()
-        } else if !problem.is_empty() {
-            format!("<span class=\"word crit\">{}</span>", e(&problem))
-        } else if need > 0 {
-            "<span class=\"word\">Behind</span>".into()
-        } else if !mine.is_empty() {
-            "<span class=\"word\">Open findings</span>".into()
-        } else {
-            "<span class=\"word ok\">Fine</span>".into()
-        };
-        let counts: Vec<_> = a(h, "runs")
-            .iter()
-            .filter_map(|r| r["findings"].as_f64())
-            .collect();
-        cards.push_str(&format!("<a href=\"/findings?host={}\" aria-label=\"{}\" class=\"mc\"><span class=\"hd\">{}<span class=\"nm\">{}</span><span class=\"t\">{}{}</span></span><span class=\"fig\"><span class=\"cap\">{need}</span><span class=\"unit\">need you</span></span>{word}{}</a>",encoded(s(h,"host")),e(&format!("{}: {need} need you, {}{}{}{}",s(h,"host"),plural(mine.len(),"open issue"),if exploited > 0 { format!(", {exploited} exploited") } else { String::new() },if ready { ", a fix is ready" } else { "" },if problem.is_empty() { String::new() } else { format!(", {}",problem.to_lowercase()) })),icon("server"),e(s(h,"host")),e(&ago(number(&h["last"],"finished"),now)),icon("chev"),spark(&counts)));
-    }
-    if cards.is_empty() {
-        cards
-    } else {
-        format!("<div class=\"mcs\">{cards}</div>")
-    }
-}
-fn chart(ex: &Value, soft: bool, now: f64) -> String {
-    let counts: Vec<_> = a(ex, "counts").iter().filter_map(Value::as_f64).collect();
-    if counts.len() < 2 {
-        return String::new();
-    }
-    let top = counts.iter().copied().fold(1., f64::max);
-    let mut path = format!(
-        "M0 {:.1}",
-        if soft { 112. } else { 108. } - counts[0] * 96. / top
-    );
-    for (i, c) in counts.iter().enumerate().skip(1) {
-        let x = i as f64 * 700. / (counts.len() - 1) as f64;
-        let y = if soft { 112. } else { 108. } - c * 96. / top;
-        if soft {
-            path.push_str(&format!(" L{x:.1} {y:.1}"));
-        } else {
-            path.push_str(&format!(" H{x:.1} V{y:.1}"));
-        }
-    }
-    let n = counts.last().unwrap();
-    if soft {
-        return format!("<svg class=\"soft\" viewBox=\"0 0 700 120\" preserveAspectRatio=\"none\" role=\"img\" aria-label=\"Open issues per day for 14 days, {n} today\"><defs><linearGradient id=\"soft-fill\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" class=\"top\"/><stop offset=\"1\" class=\"bot\"/></linearGradient></defs><path d=\"{path} V120 H0 Z\" fill=\"url(#soft-fill)\"/><path class=\"ln\" d=\"{path}\" vector-effect=\"non-scaling-stroke\"/></svg><div class=\"axis\"><span>14 days ago</span><span>Today, {n} open</span></div>");
-    }
-    let mut ticks = String::new();
-    for f in a(ex, "fixes") {
-        let x =
-            (number(f, "at") - number(ex, "start")) / (now - number(ex, "start")).max(1.) * 700.;
-        let tip = e(&format!(
-            "Fixed {} · {}",
-            s(f, "what"),
-            ago(number(f, "at"), now)
-        ));
-        ticks.push_str(&format!("<line class=\"tick\" x1=\"{x:.1}\" x2=\"{x:.1}\" y1=\"108\" y2=\"118\" vector-effect=\"non-scaling-stroke\"/><rect class=\"hit\" x=\"{:.1}\" y=\"96\" width=\"16\" height=\"24\" data-tip=\"{tip}\"><title>{tip}</title></rect>",x-8.));
-    }
-    format!("<div class=\"card\"><div class=\"label\">Open, 14 days</div><div class=\"endlabel\"><b>{n}</b>today</div><svg class=\"area\" viewBox=\"0 0 700 120\" preserveAspectRatio=\"none\" role=\"img\" aria-label=\"Open findings per day for 14 days, {n} today\"><path class=\"wash\" d=\"{path} V108 H0 Z\"/><path class=\"ln\" d=\"{path}\" vector-effect=\"non-scaling-stroke\"/><line class=\"base\" x1=\"0\" x2=\"700\" y1=\"108\" y2=\"108\" vector-effect=\"non-scaling-stroke\"/>{ticks}</svg><div class=\"axis\"><span>14 d ago</span><span>Ticks are fixes</span><span>Today</span></div></div>")
-}
-fn encoded(s: &str) -> String {
+pub(super) fn encoded(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
-}
-fn finding_advisories(issue: &Value) -> &[Value] {
-    if issue["type"] == "health" {
-        &[]
-    } else {
-        a(issue, "advisories")
-    }
 }
 fn open_count(issue: &Value) -> usize {
     if issue["type"] == "health" {
@@ -452,32 +173,347 @@ fn open_count(issue: &Value) -> usize {
         number(issue, "count") as usize
     }
 }
-fn no_scans_label(snapshot: &Value) -> &str {
+pub(super) fn no_scans_label(snapshot: &Value) -> &str {
     if snapshot["has_scans"] == true {
         "No scans in this view"
     } else {
         "No scans yet"
     }
 }
-fn project_cards(snapshot: &Value) -> String {
-    let projects = a(snapshot, "projects");
-    if projects.is_empty() {
-        return String::new();
+pub(super) fn project_href(p: &Value) -> String {
+    if p["inferred"] == true {
+        format!("/findings?scope={}", encoded(s(p, "scope")))
+    } else if p["imported"] == true {
+        // The card's own rule picks the findings, inside its scope's view.
+        let scope = encoded(s(p, "scope"));
+        format!(
+            "/findings?scope={scope}&host={}&project={scope}",
+            encoded(s(p, "host"))
+        )
+    } else {
+        format!(
+            "/findings?host={}&project={}",
+            encoded(s(p, "host")),
+            encoded(s(p, "root"))
+        )
     }
-    let mut body = "<h2>Projects</h2><div class=\"rows\">".to_string();
-    for p in projects {
-        let unknown = p["scan"] != "ok";
-        let word = if unknown {
-            "Can't confirm"
-        } else if number(p, "urgent") > 0. {
-            "Urgent"
-        } else if number(p, "open") > 0. {
-            "Open findings"
-        } else if p["inferred"] == true {
-            "Saved historical scope"
+}
+pub fn head(title: &str, sub: &str, right: &str) -> String {
+    format!(
+        "<div class=\"header-row\"><div class=\"hgroup\"><h1>{}</h1><p>{}</p></div>{right}</div>",
+        e(title),
+        e(sub)
+    )
+}
+pub fn panel(title: &str, link: Option<(&str, &str)>, body: &str) -> String {
+    let link = link
+        .map(|(href, label)| format!("<a class=\"text-link\" href=\"{href}\">{label} →</a>"))
+        .unwrap_or_default();
+    format!(
+        "<section class=\"panel\"><div class=\"panel-header\"><h2>{}</h2>{link}</div>{body}</section>",
+        e(title)
+    )
+}
+pub fn state(ic: &str, title: &str, line: &str, extra: &str, class: &str) -> String {
+    let line = if line.is_empty() {
+        String::new()
+    } else {
+        format!("<p>{}</p>", e(line))
+    };
+    format!(
+        "<div class=\"state {class}\"><div class=\"badge\">{}</div><h3>{}</h3>{line}{extra}</div>",
+        icon(ic),
+        e(title)
+    )
+}
+pub fn cmdline(cmd: &str) -> String {
+    format!(
+        "<div class=\"cmdline\"><code>{0}</code><button class=\"btn\" type=\"button\" data-copy=\"{0}\"><span>Copy</span></button></div>",
+        e(cmd)
+    )
+}
+fn copy_scan() -> String {
+    format!(
+        "<div><button class=\"btn primary\" type=\"button\" data-copy=\"vorda scan\">{}<span>Copy scan command</span></button></div>",
+        icon("copy")
+    )
+}
+pub fn error_page(title: &str, path: &str) -> String {
+    head(title, "This page needs Vorda's saved results.", &copy_scan())
+        + &format!(
+            "<div class=\"grid\"><section class=\"panel wide\">{}</section></div>",
+            state(
+                "warn",
+                "Cannot read saved results",
+                "Could not open the mailbox file. Check that this path exists and is readable, then reload.",
+                &format!("<div class=\"errbox\">{}</div>", e(path)),
+                "err"
+            )
+        )
+}
+pub fn last_scan(snapshot: &Value) -> String {
+    let last = a(snapshot, "hosts")
+        .iter()
+        .max_by(|x, y| number(&x["last"], "finished").total_cmp(&number(&y["last"], "finished")));
+    let when = last.map_or(0., |h| number(&h["last"], "finished"));
+    let mut text = e(&ago(when, number(snapshot, "now")));
+    if let Some(h) = last.filter(|_| when > 0.) {
+        text.push_str(&format!(" · {}", e(s(h, "host"))));
+    }
+    format!("<div class=\"nav-end\"><b>Last scan</b>{text}</div>")
+}
+pub(super) fn grouped(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+fn action_row(href: &str, signal: &str, title: &str, sub: &str, foot: &str) -> String {
+    format!(
+        "<a class=\"action-row\" href=\"{href}\"><span class=\"signal {signal}\"></span><div class=\"row-text\"><div class=\"row-title\">{}</div><div class=\"row-sub\">{}</div><div class=\"row-foot\">{}</div></div>{}</a>",
+        e(title),
+        e(sub),
+        e(foot),
+        icon("chev")
+    )
+}
+pub(super) fn scope_row(href: &str, ic: &str, name: &str, desc: &str, side: &str) -> String {
+    format!(
+        "<a class=\"listrow\" href=\"{href}\"><div class=\"badge\">{}</div><div class=\"row-text\"><div class=\"name\">{}</div><div class=\"desc\">{}</div></div><div class=\"side\">{}</div>{}</a>",
+        icon(ic),
+        e(name),
+        e(desc),
+        e(side),
+        icon("chev")
+    )
+}
+fn entry(title: &str, line: &str) -> String {
+    format!(
+        "<div class=\"entry\"><div class=\"row-title\">{}</div><div class=\"row-sub\">{}</div></div>",
+        e(title),
+        e(line)
+    )
+}
+const COVERAGE: [&str; 4] = [
+    "System packages",
+    "Project lockfiles",
+    "Browsers",
+    "Agent tools",
+];
+/// The right-side label of a machine or project row: how many open findings need attention.
+pub(super) fn attention(open: usize, scan: &Value) -> String {
+    match open {
+        0 if !scan.is_null() && scan != "ok" => "Partial coverage".to_string(),
+        0 => String::new(),
+        1 => "1 needs attention".to_string(),
+        n => format!("{n} need attention"),
+    }
+}
+pub fn overview_screen(snapshot: &Value) -> String {
+    let (hosts, issues, projects) = (
+        a(snapshot, "hosts"),
+        a(snapshot, "issues"),
+        a(snapshot, "projects"),
+    );
+    let copy = copy_scan();
+    if hosts.is_empty() && issues.is_empty() {
+        let title = if snapshot["has_scans"] == true {
+            no_scans_label(snapshot)
         } else {
-            "Clear"
+            "Welcome to Vorda"
         };
+        let ghost: String = COVERAGE
+            .iter()
+            .map(|name| {
+                format!("<div class=\"cov-row\"><span>{name}</span><span>Not scanned</span></div>")
+            })
+            .collect();
+        return head(
+            title,
+            "Run a scan to see what needs attention on this machine.",
+            &copy,
+        ) + &format!(
+            "<div class=\"grid\">{}{}</div><div class=\"grid\">{}{}</div>",
+            panel(
+                "Next actions",
+                None,
+                &state(
+                    "findings",
+                    no_scans_label(snapshot),
+                    "Vorda shows findings, coverage and inventory after the first scan.",
+                    &cmdline("vorda scan"),
+                    ""
+                )
+            ),
+            panel(
+                "Scan coverage",
+                None,
+                &format!("<div class=\"coverage ghost\">{ghost}</div>")
+            ),
+            panel(
+                "In scope",
+                None,
+                &state("inventory", "No inventory yet", "", "", "small")
+            ),
+            panel(
+                "Inbox",
+                None,
+                &format!(
+                    "<div class=\"mini\">{}</div>",
+                    entry(
+                        "No messages yet",
+                        "Each scan adds new findings and changes here for every reader."
+                    )
+                )
+            ),
+        );
+    }
+    let now = number(snapshot, "now");
+    let found: Vec<_> = issues.iter().filter(|i| i["type"] != "health").collect();
+    let open: usize = found.iter().map(|i| open_count(i)).sum();
+    let unsure_hosts: Vec<_> = hosts.iter().filter(|h| h["scan"] != "ok").collect();
+    let unsure_projects: Vec<_> = projects.iter().filter(|p| p["scan"] != "ok").collect();
+    let unsure = !unsure_hosts.is_empty() || !unsure_projects.is_empty();
+    let title = match open {
+        0 if unsure => "Scan coverage is incomplete".to_string(),
+        0 => "Nothing needs attention".to_string(),
+        1 => "1 item needs attention".to_string(),
+        n => format!("{n} items need attention"),
+    };
+    let dev: usize = found
+        .iter()
+        .filter(|i| i["dev_only"] == true)
+        .map(|i| open_count(i))
+        .sum();
+    let sub = match dev {
+        0 => "Start with what matters. Everything else is available when you need it.".to_string(),
+        1 => {
+            "1 is likely dev only, based on lockfile flags or test and fixture folders.".to_string()
+        }
+        n => {
+            format!("{n} are likely dev only, based on lockfile flags or test and fixture folders.")
+        }
+    };
+    let mut actions: String = found
+        .iter()
+        .take(4)
+        .map(|i| {
+            let path = s(i, "path");
+            let place = if path.is_empty() {
+                s(i, "eyebrow").to_string()
+            } else {
+                basename(path)
+            };
+            let advice = advice(i);
+            action_row(
+                &format!("/finding/{}", s(i, "id")),
+                if i["kev"] == true { "red" } else { "" },
+                s(i, "title"),
+                &format!("{} · {place}", s(i, "host")),
+                &capitalize(advice.strip_prefix("Advice: ").unwrap_or(&advice)),
+            )
+        })
+        .collect();
+    for h in &unsure_hosts {
+        let problems = a(h, "problems");
+        if problems.is_empty() {
+            actions.push_str(&action_row(
+                &format!("/findings?host={}", encoded(s(h, "host"))),
+                "amber",
+                &scan_problem(h, now),
+                s(h, "host"),
+                "",
+            ));
+            continue;
+        }
+        let count = (number(h, "problem_count") as usize).max(problems.len());
+        actions.push_str(&action_row(
+            "/findings?f=coverage",
+            "amber",
+            &format!("Coverage is partial on {}", s(h, "host")),
+            &format!(
+                "{} · {}",
+                s(h, "host"),
+                problems
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            &format!(
+                "{} · Check coverage",
+                if count == 1 {
+                    "1 source could not be checked".to_string()
+                } else {
+                    format!("{count} sources could not be checked")
+                }
+            ),
+        ));
+    }
+    for p in &unsure_projects {
+        actions.push_str(&action_row(
+            &project_href(p),
+            "amber",
+            &scan_problem(p, now),
+            s(p, "name"),
+            "",
+        ));
+    }
+    let actions = if actions.is_empty() {
+        state("findings", &title, "", "", "small")
+    } else {
+        format!("<div class=\"list\">{actions}</div>")
+    };
+    let items = a(&snapshot["assets"], "items");
+    let kind = |t: &str| items.iter().filter(|i| i["subtype"] == t).count();
+    let agent_tools = items.iter().filter(|i| is_agent_tool(i)).count();
+    let coverage: String = COVERAGE
+        .iter()
+        .zip([
+            kind("os-package"),
+            lockfiles(items).len(),
+            kind("browser"),
+            agent_tools,
+        ])
+        .map(|(name, n)| {
+            let value = if n == 0 {
+                "None found".to_string()
+            } else {
+                format!("{} found", grouped(n))
+            };
+            format!("<div class=\"cov-row\"><span>{name}</span><span>{value}</span></div>")
+        })
+        .collect();
+    let note = if unsure {
+        "<div class=\"panel-note\">A clean result cannot be confirmed where discovery is incomplete.</div>"
+    } else {
+        ""
+    };
+    let mut scope: String = hosts
+        .iter()
+        .map(|h| {
+            scope_row(
+                &format!("/findings?host={}", encoded(s(h, "host"))),
+                "inventory",
+                s(h, "host"),
+                "System packages, browsers, tools",
+                &attention(
+                    found
+                        .iter()
+                        .filter(|i| i["host"] == h["host"])
+                        .map(|i| open_count(i))
+                        .sum(),
+                    &h["scan"],
+                ),
+            )
+        })
+        .collect();
+    for p in projects {
         let place = if p["imported"] == true {
             s(p, "source")
         } else if s(p, "root").is_empty() {
@@ -485,335 +521,329 @@ fn project_cards(snapshot: &Value) -> String {
         } else {
             s(p, "root")
         };
-        let mut meta = format!(
-            "{} · scanned {} · {} urgent, {} open",
-            place,
-            ago(number(&p["last"], "finished"), number(snapshot, "now")),
+        let mut desc = format!(
+            "{place} · scanned {} · {} urgent, {} open",
+            ago(number(&p["last"], "finished"), now),
             number(p, "urgent"),
             number(p, "open")
         );
         if p["missing"] == true || p["nothing_checked"] == true || !a(p, "problems").is_empty() {
-            meta.push_str(&format!(" · {}", scan_problem(p, number(snapshot, "now"))));
+            desc.push_str(&format!(" · {}", scan_problem(p, now)));
         }
         if p["inferred"] == true {
-            meta.push_str(" · Saved historical scope · Original scan root not recorded");
+            desc.push_str(" · Saved historical scope · Original scan root not recorded");
         }
-        body.push_str(&row(
-            &if p["inferred"] == true {
-                format!("/findings?scope={}", encoded(s(p, "scope")))
-            } else if p["imported"] == true {
-                // The card's own rule picks the findings, inside its scope's view.
-                let scope = encoded(s(p, "scope"));
-                format!(
-                    "/findings?scope={scope}&host={}&project={scope}",
-                    encoded(s(p, "host"))
-                )
-            } else {
-                format!(
-                    "/findings?host={}&project={}",
-                    encoded(s(p, "host")),
-                    encoded(s(p, "root"))
-                )
-            },
-            "list",
-            word,
+        let side = if p["scan"] != "ok" {
+            "Can't confirm".to_string()
+        } else {
+            attention(number(p, "open") as usize, &p["scan"])
+        };
+        scope.push_str(&scope_row(
+            &project_href(p),
+            "pkg",
             s(p, "name"),
-            &e(&meta),
-            if unknown || number(p, "urgent") > 0. {
-                "crit"
-            } else {
-                ""
-            },
-            "",
-            "a",
+            &desc,
+            &side,
         ));
     }
-    body + "</div>"
-}
-pub fn now_screen(snapshot: &Value) -> String {
-    let (hosts, issues) = (a(snapshot, "hosts"), a(snapshot, "issues"));
-    if hosts.is_empty() && issues.is_empty() {
-        return format!(
-            "<div class=\"card\"><div class=\"hero\">{}</div>{}</div>",
-            no_scans_label(snapshot),
-            copy_cmd("vorda check")
-        );
-    }
-    let needs: Vec<_> = issues.iter().filter(|i| i["needs"] == true).collect();
-    let now = number(snapshot, "now");
-    let last = hosts
+    let readers = a(snapshot, "readers");
+    let mut inbox: String = readers
         .iter()
-        .map(|h| number(&h["last"], "finished"))
-        .fold(0., f64::max);
-    let month = a(snapshot, "fixes")
-        .iter()
-        .filter(|f| now - number(f, "at") < 2592000.)
-        .count();
-    let mut quiet = format!(
-        "<div class=\"quiet\">{} new today · {month} fixed in 30 days · scanned {}</div>",
-        number(snapshot, "new_today"),
-        e(&ago(last, now))
-    );
-    let mut why = coverage(hosts, now);
-    let unknown: Vec<_> = a(snapshot, "projects")
-        .iter()
-        .filter(|p| p["scan"] != "ok")
-        .collect();
-    if !unknown.is_empty() {
-        if !why.is_empty() {
-            why.push_str(" · ");
-        }
-        why.push_str(&format!(
-            "Can't confirm: {}",
-            unknown
-                .iter()
-                .map(|p| s(p, "name"))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    }
-    let open: usize = issues.iter().map(open_count).sum();
-    quiet.push_str(&format!(
-        "<div class=\"quiet\">{} urgent, {open} open · {} unknown · <a class=\"lnk\" href=\"/findings\">View findings</a></div>",
-        needs.len(), plural(unknown.len(), "project")
-    ));
-    let hero = if !why.is_empty() {
-        let urgent = if needs.is_empty() {
-            String::new()
-        } else {
-            format!(
-                "<div class=\"hero\">{}<span class=\"label\">need you</span></div>",
-                needs.len()
+        .map(|r| {
+            entry(
+                &format!("Unread for {}", s(r, "name")),
+                &format!(
+                    "{} messages not yet acknowledged by this reader.",
+                    number(r, "unread")
+                ),
             )
-        };
-        format!(
-            "{urgent}<div class=\"hero\">{}<span>Can't confirm</span></div><div class=\"quiet\">{}</div>{}",
-            icon("alert"),
-            e(&why),
-            copy_cmd("vorda check")
-        )
-    } else if !needs.is_empty() {
-        format!(
-            "<div class=\"hero\">{}<span class=\"label\">need you</span></div>",
-            needs.len()
-        )
-    } else if !issues.is_empty() {
-        let dev: usize = issues
-            .iter()
-            .filter(|i| i["dev_only"] == true)
-            .map(open_count)
-            .sum();
-        if dev > 0 {
-            quiet.push_str(&format!("<div class=\"quiet\">{dev} marked likely dev only by lockfile flags or test or fixture folders</div>"));
-        }
-        format!("<div class=\"hero\">0 urgent, {open} open</div><a class=\"lnk\" href=\"/findings\">View findings</a>")
-    } else {
-        format!(
-            "<div class=\"hero\">{}<span>All clear</span></div>",
-            icon("check")
-        )
-    };
-    let mut body = format!(
-        "<div class=\"card\">{hero}{quiet}{}</div>{}",
-        if !issues.is_empty() || !a(snapshot, "fixes").is_empty() {
-            chart(&snapshot["exposure"], true, now)
-        } else {
-            String::new()
-        },
-        machine_cards(snapshot) + &project_cards(snapshot)
-    );
-    if !needs.is_empty() {
-        body.push_str(&format!(
-            "<h2>Do these next</h2><div class=\"rows\">{}</div>",
-            needs
-                .iter()
-                .take(4)
-                .map(|i| issue_row(i, true))
-                .collect::<String>()
-        ));
-    }
-    if needs.len() > 4 {
-        body.push_str(&format!(
-            "<div class=\"rows\" id=\"later\">{}</div>",
-            row(
-                "/findings",
-                "list",
-                "",
-                &format!("{} more need you", needs.len() - 4),
-                "",
-                "",
-                "",
-                "a"
-            )
-        ));
-    }
-    if issues.len() > needs.len() {
-        body.push_str(&format!(
-            "<a class=\"lnk quiet\" href=\"/findings\">All {}</a>",
-            plural(issues.len(), "issue")
-        ));
-    }
-    if !a(snapshot, "news").is_empty() {
-        body.push_str(&format!(
-            "<h2>Latest</h2><div class=\"rows\">{}{}</div>",
-            {
-                let mut latest = a(snapshot, "news").to_vec();
-                latest.sort_by_key(|n| !(n["kev"] == true && !a(n, "hosts").is_empty()));
-                news_rows(&latest.iter().collect::<Vec<_>>(), now)
-                    .into_iter()
-                    .take(2)
-                    .collect::<String>()
-            },
-            row("/news", "news", "", "All news", "", "", "", "a")
-        ));
-    }
-    body
-}
-fn news_where(n: &Value) -> String {
-    let hosts = a(n, "hosts");
-    if !hosts.is_empty() {
-        format!(
-            "Saved match on {}",
-            if hosts.len() < 3 {
-                hosts
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            } else {
-                plural(hosts.len(), "machine")
-            }
-        )
-    } else if n["type"] == "public-update" {
-        "No saved local match".into()
-    } else if n["fixed"] == true {
-        "Fixed here".into()
-    } else {
-        "No longer found".into()
-    }
-}
-fn news_row(n: &Value, now: f64) -> String {
-    let meta = format!(
-        "{} · <span class=\"nw m\">{}</span> · <span class=\"nw\">{}</span>",
-        e(&news_where(n)),
-        e(s(n, "advisory")),
-        e(&if s(n, "published").is_empty() {
-            ago(number(n, "at"), now)
-        } else {
-            s(n, "published").into()
         })
-    );
-    let urgent = n["kev"] == true && !a(n, "hosts").is_empty();
-    let url = s(n, "url");
-    let html = row(
-        url,
-        if urgent {
-            "alert"
-        } else {
-            type_icon(s(n, "type"))
-        },
-        "",
-        s(n, "text"),
-        &meta,
-        if urgent { "crit" } else { "" },
-        "",
-        if url.is_empty() { "div" } else { "a" },
-    );
-    if url.is_empty() {
-        html
+        .collect();
+    if readers.is_empty() {
+        inbox = entry(
+            "No messages yet",
+            "Each scan adds new findings and changes here for every reader.",
+        );
+    }
+    let waiting = a(snapshot, "drafts")
+        .iter()
+        .filter(|d| d["state"] == "waiting")
+        .count();
+    inbox.push_str(&match waiting {
+        0 if snapshot["repairs_on"] == true => {
+            entry("No repair drafts", "No drafts are waiting for approval.")
+        }
+        0 => entry(
+            "No repair drafts",
+            "Vorda drafts repairs only when started with --fix-config.",
+        ),
+        1 => entry(
+            "1 repair draft waiting",
+            "Each draft needs review and approval before Vorda applies it.",
+        ),
+        n => entry(
+            &format!("{n} repair drafts waiting"),
+            "Each draft needs review and approval before Vorda applies it.",
+        ),
+    });
+    let mut inbox = format!("<div class=\"mini\">{inbox}</div>");
+    if let Some(fleet) = a(snapshot, "modes").first() {
+        let mode = s(fleet, "mode");
+        let line = match mode {
+            "watch" => "Report findings without proposing changes.",
+            "fix" => "Permit explicitly allowed, approved remediation.",
+            _ => "Vorda prepares changes; approval is required.",
+        };
+        inbox.push_str(&format!(
+            "<div class=\"policy-inline\"><div><div class=\"t\">Policy: {}</div><div class=\"s\">{line}</div></div><a class=\"text-link\" href=\"/policy\">Manage →</a></div>",
+            e(&capitalize(mode))
+        ));
+    }
+    head(&title, &sub, &copy)
+        + &format!(
+            "<div class=\"grid\">{}{}</div><div class=\"grid\">{}{}</div>",
+            panel(
+                "Next actions",
+                Some(("/findings", "All findings")),
+                &actions
+            ),
+            panel(
+                "Scan coverage",
+                Some(("/inventory", "Explore inventory")),
+                &format!("<div class=\"coverage\">{coverage}</div>{note}")
+            ),
+            panel(
+                "In scope",
+                Some(("/inventory", "All assets")),
+                &format!("<div class=\"entity\">{scope}</div>")
+            ),
+            panel("Inbox", Some(("/inbox", "Open inbox")), &inbox),
+        )
+}
+const TABS: [(&str, &str); 4] = [
+    ("all", "All findings"),
+    ("kev", "Known exploited"),
+    ("review", "Needs review"),
+    ("coverage", "Uncertain coverage"),
+];
+fn fact(title: &str, body: &str) -> String {
+    format!("<div class=\"fact\"><b>{}</b>{body}</div>", e(title))
+}
+fn para(text: &str) -> String {
+    format!("<p>{}</p>", e(text))
+}
+// A path a shell reads as one word, so the copied scan command runs as shown.
+fn shell_word(path: &str) -> String {
+    if path
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "/._-+~".contains(c))
+    {
+        path.into()
     } else {
-        html.replacen('>', " rel=\"noreferrer noopener\" target=\"_blank\">", 1)
+        format!("'{}'", path.replace('\'', "'\\''"))
     }
 }
-fn hosts_screen(snapshot: &Value) -> String {
-    let hosts = a(snapshot, "hosts");
-    if hosts.is_empty() {
-        return "<h1>Hosts</h1>".to_string()
-            + &empty(no_scans_label(snapshot), &copy_cmd("vorda check"));
-    }
-    let good = hosts.iter().filter(|h| h["health"] == "good").count();
-    let mut body=format!("<h1>Hosts</h1><div class=\"tiles\"><div class=\"card tile\"><div class=\"label\">Healthy</div><div class=\"num\">{good}</div></div><div class=\"card tile\"><div class=\"label\">Needs a look</div><div class=\"num\">{}</div></div></div><h2>All hosts</h2><div class=\"rows\">",hosts.len()-good);
-    let now = number(snapshot, "now");
-    for h in hosts {
-        let (word, tone) = match s(h, "health") {
-            "good" => ("Healthy", "ok"),
-            "critical" => ("Exploited flaw", "crit"),
-            _ => ("Needs a look", "warn"),
-        };
-        let problem = scan_problem(h, now);
-        let word = if problem.is_empty() {
-            word.into()
-        } else if tone == "crit" {
-            format!("{word} · {problem}")
-        } else {
-            problem
-        };
-        let mut meta = format!(
-            "Scanned {} · {}",
-            ago(number(&h["last"], "finished"), now),
-            plural(number(h, "open") as usize, "issue")
-        );
-        let bad = a(h, "runs")
+fn finding_detail(i: &Value) -> String {
+    let fix = s(i, "fix");
+    let mut kv = String::new();
+    let mut item = |label: &str, value: String| {
+        kv.push_str(&format!("<dt>{}</dt><dd>{value}</dd>", e(label)));
+    };
+    let advisories = a(i, "advisories");
+    if !advisories.is_empty() {
+        let mut lines: Vec<String> = advisories
             .iter()
-            .filter(|r| scan_state(r, now, false) == "failed")
-            .count();
-        if bad > 0 {
-            meta.push_str(&format!(
-                " · {bad} of {} scans incomplete",
-                a(h, "runs").len()
+            .take(8)
+            .map(|adv| {
+                let basis = s(adv, "basis");
+                let confidence = s(adv, "confidence");
+                format!(
+                    "<span class=\"m\">{}</span> · {}{}{}",
+                    e(s(adv, "id")),
+                    capitalize(s(adv, "severity")),
+                    if basis.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({})", e(basis))
+                    },
+                    if confidence.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" · Match: {}", e(confidence))
+                    }
+                )
+            })
+            .collect();
+        if advisories.len() > 8 {
+            lines.push(format!("and {} more", advisories.len() - 8));
+        }
+        item("Advisory", lines.join("<br>"));
+        let mut aliases: BTreeSet<&str> = advisories
+            .iter()
+            .flat_map(|adv| a(adv, "aliases").iter().filter_map(Value::as_str))
+            .collect();
+        for adv in advisories {
+            aliases.remove(s(adv, "id"));
+        }
+        if !aliases.is_empty() {
+            item(
+                "Also known as",
+                e(&aliases.into_iter().take(30).collect::<Vec<_>>().join(", ")),
+            );
+        }
+    }
+    let (installed, target, path) = (s(i, "installed"), s(i, "target"), s(i, "path"));
+    if !installed.is_empty() || !path.is_empty() {
+        let mut value = e(installed);
+        if !target.is_empty() {
+            value.push_str(&format!(" → {}", e(target)));
+        }
+        if !path.is_empty() {
+            value.push_str(&format!(
+                "{}<span class=\"m\">{}</span>",
+                if installed.is_empty() { "" } else { " in " },
+                e(path)
             ));
         }
-        let state = if ["crit", "ok"].contains(&tone) {
-            format!("<span class=\"{tone}\">{}</span>", e(&word))
+        item("Installed", value);
+    }
+    if i["dev_only"] == true {
+        item(
+            "Scope",
+            e("Likely dev only (lockfile flags or test and fixture folders)"),
+        );
+    }
+    item(
+        "Exploit signal",
+        e(if i["kev"] == true {
+            "On the CISA known exploited list"
         } else {
-            e(&word)
-        };
-        body.push_str(&row(
-            &format!("/findings?host={}", encoded(s(h, "host"))),
-            "server",
-            &state,
-            s(h, "host"),
-            &e(&meta),
-            tone,
-            "",
-            "a",
-        ));
+            "Not on the CISA known exploited list"
+        }),
+    );
+    let epss = number(i, "epss");
+    if epss > 0. {
+        item("EPSS", format!("{:.1}%", epss * 100.));
     }
-    body + "</div>"
-}
-fn sev_card(issues: &[&Value]) -> String {
-    let mut counts = [0usize; 5];
-    for i in issues {
-        for adv in finding_advisories(i) {
-            counts[SEVERITIES
+    let sources: BTreeSet<&str> = advisories
+        .iter()
+        .flat_map(|adv| a(adv, "sources").iter().filter_map(Value::as_str))
+        .collect();
+    if !sources.is_empty() {
+        item(
+            "Source",
+            sources
                 .iter()
-                .position(|s| *s == super::english::s(adv, "severity"))
-                .unwrap_or(4)] += 1;
-        }
-        let observations = open_count(i).saturating_sub(finding_advisories(i).len());
-        counts[SEVERITIES
-            .iter()
-            .position(|sev| *sev == s(i, "severity"))
-            .unwrap_or(4)] += observations;
+                .take(2)
+                .map(|url| {
+                    format!(
+                        "<a class=\"text-link\" href=\"{0}\" rel=\"noreferrer noopener\" target=\"_blank\">{0}</a>",
+                        e(url)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("<br>"),
+        );
     }
-    let total: usize = counts.iter().sum();
-    let (mut x, mut segments, mut legend) = (0., String::new(), String::new());
-    for (sev, count) in SEVERITIES.iter().zip(counts) {
-        if count > 0 {
-            let w = count as f64 * 100. / total as f64;
-            let tip = format!("{}: {count}", capitalize(sev));
-            segments.push_str(&format!("<rect class=\"seg sev-{sev}\" x=\"{x:.3}%\" y=\"0\" width=\"{w:.3}%\" height=\"14\" rx=\"2\" data-tip=\"{tip}\"><title>{tip}</title></rect>"));
-            x += w;
+    let draft = &i["draft"];
+    let action = if draft.is_object() {
+        format!(
+            "<p><a class=\"text-link\" href=\"/review/{}\">Needs your OK: {} →</a></p>",
+            e(s(draft, "id")),
+            e(s(draft, "title"))
+        )
+    } else if i["mode"] == "watch" {
+        para("Alert only on this machine")
+    } else if let Some(cmd) = fix.strip_prefix("Run: ") {
+        cmdline(cmd)
+    } else if fix.is_empty() {
+        String::new()
+    } else {
+        para(fix)
+    };
+    let library = i["type"] == "library" && !path.is_empty();
+    let scan = if library {
+        let dir = std::path::Path::new(path)
+            .parent()
+            .map_or(String::new(), |d| d.to_string_lossy().into_owned());
+        if dir.is_empty() {
+            "vorda scan".to_string()
+        } else {
+            format!("vorda scan {}", shell_word(&dir))
         }
-        legend.push_str(&format!("<div><span class=\"dot sev-{sev}\"></span><span>{}</span><span class=\"lead\"></span><span>{count}</span></div>",capitalize(sev)));
-    }
-    format!("<div class=\"card\" id=\"sev\"><div class=\"label\">Open findings</div><div class=\"hero\">{total}</div><svg class=\"bar\" role=\"img\" aria-label=\"Findings by severity\">{segments}</svg><div class=\"legend\">{legend}</div></div>")
+    } else {
+        "vorda scan".to_string()
+    };
+    format!(
+        "<section class=\"panel sidecard\"><h2>{}</h2>{}{}{}{}<button class=\"btn primary\" type=\"button\" data-copy=\"{}\">{}<span>Copy scan command</span></button></section>",
+        e(s(i, "title")),
+        fact(
+            "Why it matters",
+            &para(if s(i, "why").is_empty() { fix } else { s(i, "why") })
+        ),
+        fact("Evidence", &format!("<dl class=\"kv\">{kv}</dl>")),
+        if action.is_empty() {
+            String::new()
+        } else {
+            fact("Recommended action", &action)
+        },
+        fact(
+            "After a change",
+            &para(if library {
+                "Rescan the project to confirm the finding is resolved."
+            } else {
+                "Rescan the machine to confirm the finding is resolved."
+            })
+        ),
+        e(&scan),
+        icon("copy")
+    )
 }
-pub(super) fn findings_screen(snapshot: &Value, filter: &str, host: &str, project: &str) -> String {
+fn finding_row(href: &str, i: &Value, selected: bool) -> String {
+    let ids: Vec<&str> = a(i, "advisories").iter().map(|adv| s(adv, "id")).collect();
+    let mut desc = format!("{} · {}", s(i, "host"), s(i, "eyebrow"));
+    if !ids.is_empty() {
+        desc.push_str(&format!(" · {}", ids[..ids.len().min(3)].join(", ")));
+        if ids.len() > 3 {
+            desc.push_str(&format!(" and {} more", ids.len() - 3));
+        }
+    }
+    let side = if i["kev"] == true {
+        "<span class=\"crit\">On the CISA known exploited list</span>".to_string()
+    } else {
+        e(&capitalize(s(i, "severity")))
+    };
+    format!(
+        "<a class=\"listrow{}\" href=\"{href}\"><div class=\"badge\">{}</div><div class=\"row-text\"><div class=\"name\">{}</div><div class=\"desc\">{}</div></div><div class=\"side\">{side}</div>{}</a>",
+        if selected { " sel" } else { "" },
+        icon(type_icon(s(i, "type"))),
+        e(s(i, "title")),
+        e(&desc),
+        icon("chev")
+    )
+}
+fn coverage_row(name: &str, desc: &str, side: &str) -> String {
+    format!(
+        "<div class=\"listrow\"><div class=\"badge\">{}</div><div class=\"row-text\"><div class=\"name\">{}</div><div class=\"desc\">{}</div></div><div class=\"side\">{}</div></div>",
+        icon("warn"),
+        e(name),
+        e(desc),
+        e(side)
+    )
+}
+pub(super) fn findings_screen(
+    snapshot: &Value,
+    filter: &str,
+    host: &str,
+    project: &str,
+    id: &str,
+) -> String {
     let projects: Vec<_> = a(snapshot, "projects")
         .iter()
         .filter(|p| {
-            (p["root"] == project || p["imported"] == true && p["scope"] == project)
+            (project.is_empty()
+                || p["root"] == project
+                || p["imported"] == true && p["scope"] == project)
                 && (host.is_empty() || p["host"] == host)
         })
         .cloned()
@@ -848,95 +878,213 @@ pub(super) fn findings_screen(snapshot: &Value, filter: &str, host: &str, projec
             i
         })
         .collect();
-    let issues: Vec<&Value> = own.iter().collect();
-    let shown: Vec<_> = issues
-        .iter()
-        .copied()
-        .filter(|i| {
-            filter == "all"
-                || filter == "kev" && i["kev"] == true
-                || i["type"] == filter
-                || filter == "agent" && ["mcp", "skill", "cli"].contains(&s(i, "type"))
-        })
-        .collect();
-    let mut title = format!(
-        "<h1>Findings{}</h1>",
-        if host.is_empty() {
-            String::new()
-        } else {
-            format!(" on {}", e(host))
-        }
-    );
-    if !project.is_empty() {
+    let found: Vec<&Value> = own.iter().filter(|i| i["type"] != "health").collect();
+    let title = if host.is_empty() {
+        "Findings".to_string()
+    } else {
+        format!("Findings on {host}")
+    };
+    let sub = if project.is_empty() {
+        "Understand the risk, the affected asset, and the available remedy before taking action."
+            .to_string()
+    } else {
         let label = projects
             .iter()
             .find(|p| p["imported"] == true)
             .map_or(project, |p| s(p, "name"));
-        title.push_str(&format!("<div class=\"sub\">Project: {}</div>", e(label)));
-    }
+        format!("Project: {label}")
+    };
+    let head = head(
+        &title,
+        &sub,
+        "<a class=\"btn\" href=\"/repairs\">Review repairs →</a>",
+    );
+    let query = format!(
+        "{}{}",
+        if host.is_empty() {
+            String::new()
+        } else {
+            format!("&amp;host={}", encoded(host))
+        },
+        if project.is_empty() {
+            String::new()
+        } else {
+            format!("&amp;project={}", encoded(project))
+        }
+    );
+    let tabs = |counts: [Option<usize>; 4]| {
+        let links: String = TABS
+            .iter()
+            .zip(counts)
+            .map(|((key, label), n)| {
+                format!(
+                    "<a href=\"/findings?f={key}{query}\"{}>{label}{}</a>",
+                    if *key == filter {
+                        " class=\"on\" aria-current=\"page\""
+                    } else {
+                        ""
+                    },
+                    n.map_or(String::new(), |n| format!("<span class=\"n\">{n}</span>"))
+                )
+            })
+            .collect();
+        format!("<nav class=\"subnav\">{links}</nav>")
+    };
+    let whole = |body: String| {
+        format!("<div class=\"grid\"><section class=\"panel wide\">{body}</section></div>")
+    };
     if a(snapshot, "hosts").is_empty() {
-        return title + &empty(no_scans_label(snapshot), &copy_cmd("vorda check"));
+        let title = if snapshot["has_scans"] == true {
+            no_scans_label(snapshot)
+        } else {
+            "No findings yet"
+        };
+        return head
+            + &tabs([None; 4])
+            + &whole(state(
+                "findings",
+                title,
+                "Vorda shows findings, coverage and inventory after the first scan.",
+                &cmdline("vorda scan"),
+                "",
+            ));
     }
+    let now = number(snapshot, "now");
     let hosts: Vec<_> = a(snapshot, "hosts")
         .iter()
         .filter(|h| host.is_empty() || h["host"] == host)
         .cloned()
         .collect();
-    let why = coverage(
-        if project.is_empty() {
-            &hosts
-        } else {
-            &projects
-        },
-        number(snapshot, "now"),
-    );
-    if issues.is_empty() {
-        return title
-            + &if why.is_empty() {
-                empty("Nothing found", "<a href=\"/hosts\">See hosts</a>")
-            } else {
-                empty("Can't confirm", &(e(&why) + &copy_cmd("vorda check")))
-            };
-    }
-    let tabs = FILTERS
+    let mut uncertain: Vec<String> = own
         .iter()
-        .map(|(key, label)| {
-            format!(
-                "<a href=\"/findings?f={key}{}{}\"{}>{label}</a>",
-                if host.is_empty() {
+        .filter(|i| i["type"] == "health")
+        .map(|i| {
+            let n = number(i, "count") as usize;
+            coverage_row(
+                s(i, "title"),
+                s(i, "fix"),
+                &if n > 1 {
+                    format!("{n} scan entries")
+                } else {
                     String::new()
-                } else {
-                    format!("&amp;host={}", encoded(host))
                 },
-                if project.is_empty() {
-                    String::new()
-                } else {
-                    format!("&amp;project={}", encoded(project))
-                },
-                if *key == filter {
-                    " aria-current=\"page\""
-                } else {
-                    ""
-                }
             )
         })
-        .collect::<String>();
-    let mut body = title + &coverage_note(&why) + &format!("<div class=\"filters\">{tabs}</div>");
-    if shown.is_empty() {
-        return body + &empty("None in this view", "<a href=\"/findings\">Show all</a>");
+        .collect();
+    if project.is_empty() {
+        for h in hosts.iter().filter(|h| a(h, "problems").is_empty()) {
+            let why = scan_problem(h, now);
+            if !why.is_empty() {
+                uncertain.push(coverage_row(&why, s(h, "host"), ""));
+            }
+        }
     }
-    body.push_str(&format!(
-        "<div class=\"stack\">{}{}</div><h2>{}</h2>{}",
-        sev_card(&shown),
-        if filter == "all" && host.is_empty() && project.is_empty() {
-            chart(&snapshot["exposure"], false, number(snapshot, "now"))
-        } else {
-            String::new()
-        },
-        plural(shown.len(), "issue"),
-        capped(shown.iter().map(|i| issue_row(i, false)).collect())
-    ));
-    body
+    for p in projects.iter().filter(|p| a(p, "problems").is_empty()) {
+        let why = scan_problem(p, now);
+        if p["scan"] != "ok" && !why.is_empty() {
+            uncertain.push(coverage_row(&why, s(p, "name"), ""));
+        }
+    }
+    let sum = |list: &[&Value]| list.iter().map(|i| open_count(i)).sum::<usize>();
+    let kev: Vec<&Value> = found.iter().copied().filter(|i| i["kev"] == true).collect();
+    let review: Vec<&Value> = found
+        .iter()
+        .copied()
+        .filter(|i| i["needs"] == true)
+        .collect();
+    let head = head
+        + &tabs([
+            Some(sum(&found)),
+            Some(sum(&kev)),
+            Some(sum(&review)),
+            Some(uncertain.len()),
+        ]);
+    let coverage_view = if uncertain.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<div class=\"grid page-grid\">{}<section class=\"panel sidecard\"><h2>Coverage is part of the result</h2><p class=\"lead\">Sources Vorda could not check in the last scan. These are not vulnerabilities.</p>{}<div class=\"panel-note\">A clean result cannot be confirmed where discovery is incomplete.</div></section></div>",
+            panel(
+                "Uncertain coverage",
+                None,
+                &format!("<div class=\"entity list-heavy\">{}</div>", uncertain.concat())
+            ),
+            fact("Partial", &para("Show paths or advisory sources that could not be checked."))
+        )
+    };
+    if filter == "coverage" {
+        return head
+            + &if uncertain.is_empty() {
+                whole(state("check", "Coverage is complete", "", "", ""))
+            } else {
+                coverage_view
+            };
+    }
+    let list = match filter {
+        "kev" => kev,
+        "review" => review,
+        _ => found,
+    };
+    if list.is_empty() {
+        let why = coverage(
+            if project.is_empty() {
+                &hosts
+            } else {
+                &projects
+            },
+            now,
+        );
+        return head
+            + &whole(match filter {
+                "kev" => state(
+                    "findings",
+                    "No known-exploited findings",
+                    "No open findings are on the CISA known exploited list.",
+                    "",
+                    "",
+                ),
+                "review" => state("findings", "Nothing needs review", "", "", ""),
+                _ if why.is_empty() && uncertain.is_empty() => {
+                    state("findings", "Nothing found", "", "", "")
+                }
+                _ => state(
+                    "findings",
+                    "Can't confirm",
+                    &why,
+                    &cmdline("vorda scan"),
+                    "",
+                ),
+            })
+            + if filter == "all" {
+                coverage_view.as_str()
+            } else {
+                ""
+            };
+    }
+    let selected = list
+        .iter()
+        .copied()
+        .find(|i| i["id"] == id)
+        .unwrap_or(list[0]);
+    let rows: String = list
+        .iter()
+        .map(|i| {
+            finding_row(
+                &format!("/findings?f={filter}&amp;id={}{query}", encoded(s(i, "id"))),
+                i,
+                std::ptr::eq(*i, selected),
+            )
+        })
+        .collect();
+    head + &format!(
+        "<div class=\"grid page-grid\">{}{}</div>",
+        panel(
+            "Prioritized findings",
+            None,
+            &format!("<div class=\"entity list-heavy\">{rows}</div>")
+        ),
+        finding_detail(selected)
+    )
 }
 fn back(href: &str, label: &str) -> String {
     format!(
@@ -950,495 +1098,16 @@ pub fn missing(screen: &str) -> String {
             + "<h1>Not found</h1>"
             + &empty(
                 "This issue is closed or gone",
-                "<a href=\"/fixes\">See fixes</a>",
+                "<a href=\"/repairs\">See repairs</a>",
             )
     } else {
-        back("/mailbox", "Mailbox")
+        back("/repairs", "Repairs")
             + "<h1>Not found</h1>"
             + &empty(
                 "This draft was applied, dismissed or replaced",
-                "<a href=\"/fixes\">See fixes</a>",
+                "<a href=\"/repairs\">See repairs</a>",
             )
     }
-}
-fn finding_screen(snapshot: &Value, id: &str) -> Option<String> {
-    let i = a(snapshot, "issues").iter().find(|i| i["id"] == id)?;
-    let fix = s(i, "fix");
-    let fix_card = if i["mode"] == "watch" && i["type"] != "health" {
-        "<div class=\"card\"><div class=\"title step\">Alert only on this machine</div></div>"
-            .into()
-    } else {
-        format!(
-            "<div class=\"card\"><div class=\"label\">Fix</div>{}{}{}</div>",
-            if let Some(cmd) = fix.strip_prefix("Run: ") {
-                copy_cmd(cmd)
-            } else {
-                format!("<div class=\"title step\">{}</div>", e(fix))
-            },
-            if s(i, "installed").is_empty() {
-                String::new()
-            } else {
-                format!(
-                    "<div class=\"quiet\">Installed {}{}</div>",
-                    e(s(i, "installed")),
-                    if s(i, "target").is_empty() {
-                        String::new()
-                    } else {
-                        format!(" → needs {}", e(s(i, "target")))
-                    }
-                )
-            },
-            if s(i, "path").is_empty() {
-                String::new()
-            } else {
-                format!("<div class=\"quiet\">At {}</div>", e(s(i, "path")))
-            }
-        )
-    };
-    let mut advs = String::new();
-    let mut aliases = BTreeSet::new();
-    for adv in a(i, "advisories") {
-        let basis = if s(adv, "basis").is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", e(s(adv, "basis")))
-        };
-        let confidence = if s(adv, "confidence").is_empty() {
-            String::new()
-        } else {
-            format!(" · Match: {}", e(s(adv, "confidence")))
-        };
-        advs.push_str(&format!("<div><div class=\"title\">{}</div><div class=\"meta\">{} · {}{basis}{}{confidence}</div>{}</div>",e(s(adv,"id")),e(s(adv,"package")),capitalize(s(adv,"severity")),if adv["kev"]==true{" · Exploited in the wild"}else{""},a(adv,"sources").iter().filter_map(Value::as_str).take(2).map(|url|format!("<div class=\"meta\"><a href=\"{0}\" rel=\"noreferrer noopener\" target=\"_blank\">{0}</a></div>",e(url))).collect::<String>()));
-        aliases.extend(a(adv, "aliases").iter().filter_map(Value::as_str));
-    }
-    for adv in a(i, "advisories") {
-        aliases.remove(s(adv, "id"));
-    }
-    if !aliases.is_empty() {
-        advs.push_str(&format!(
-            "<div><div class=\"meta\">Also known as {}</div></div>",
-            e(&aliases.into_iter().take(30).collect::<Vec<_>>().join(", "))
-        ));
-    }
-    let details = if a(i, "advisories").is_empty() {
-        String::new()
-    } else {
-        format!("<details class=\"toggle\"><summary>{}Details · {}</summary><div class=\"card adv\">{advs}</div></details>",icon("chev"),plural(a(i,"advisories").len(),"finding"))
-    };
-    Some(format!("{}<h1>{}</h1><div class=\"sub\">{}</div><div class=\"stack\"><div class=\"card\"><div class=\"label\">Why it matters</div><div class=\"title step\">{}</div></div>{fix_card}</div>{details}",back("/findings","Findings"),e(s(i,"title")),issue_state(i),e(if s(i,"why").is_empty(){fix}else{s(i,"why")})))
-}
-fn bars(values: &[Value]) -> String {
-    let top = values.iter().filter_map(Value::as_f64).fold(1., f64::max);
-    let mut out = String::new();
-    for (k, v) in values.iter().enumerate() {
-        let v = v.as_f64().unwrap_or(0.);
-        let h = if v == 0. {
-            0.
-        } else {
-            (v * 120. / top).max(4.)
-        };
-        let x = k as f64 * 100. / values.len().max(1) as f64;
-        let label = if k < 7 {
-            format!("{}w", 7 - k)
-        } else {
-            "Now".into()
-        };
-        let tip = format!("{label}: {v} fixed");
-        out.push_str(&format!("<rect class=\"b\" x=\"{:.3}%\" y=\"{:.1}\" width=\"7.5%\" height=\"{h:.1}\" rx=\"2\" data-tip=\"{tip}\"><title>{tip}</title></rect><text class=\"v\" x=\"{:.3}%\" y=\"{:.1}\" text-anchor=\"middle\">{v}</text><text x=\"{:.3}%\" y=\"172\" text-anchor=\"middle\">{label}</text>",x+2.5,150.-h,x+6.25,142.-h,x+6.25));
-    }
-    format!("<svg class=\"chart\" role=\"img\" aria-label=\"Fixes per week\"><line class=\"base\" x1=\"0\" x2=\"100%\" y1=\"150.5\" y2=\"150.5\"/>{out}</svg>")
-}
-fn fixes_screen(snapshot: &Value) -> String {
-    let fixes = a(snapshot, "fixes");
-    if fixes.is_empty() {
-        return "<h1>Fixes</h1>".to_string()
-            + &empty(
-                "Nothing fixed yet",
-                "<a href=\"/findings\">See findings</a>",
-            );
-    }
-    let values = a(snapshot, "fixes_weekly");
-    let total: f64 = values.iter().filter_map(Value::as_f64).sum();
-    let mut items = Vec::new();
-    for f in fixes {
-        let who = format!(
-            "by {}{}",
-            s(f, "actor"),
-            if s(f, "actor_kind").is_empty() {
-                String::new()
-            } else {
-                format!(" ({})", s(f, "actor_kind"))
-            }
-        );
-        let proof = if f["proof"].is_null() {
-            "gone on re-scan".into()
-        } else {
-            format!("proof scan #{}", f["proof"])
-        };
-        let meta = format!(
-            "{} · {} {who} · {proof}",
-            s(f, "host"),
-            ago(number(f, "at"), number(snapshot, "now"))
-        );
-        let inner = row(
-            "",
-            "check",
-            "",
-            &format!("Fixed: {}", s(f, "what")),
-            &e(&meta),
-            "ok",
-            "",
-            "summary",
-        );
-        let mut more = String::new();
-        if !s(f, "command").is_empty() {
-            more.push_str(&format!(
-                "<p class=\"meta\">Ran</p><code class=\"cmd\">{}</code>",
-                e(s(f, "command"))
-            ));
-        }
-        if !s(f, "undo").is_empty() {
-            more.push_str(&format!(
-                "<p class=\"meta\">Undo</p>{}",
-                copy_cmd(s(f, "undo"))
-            ));
-        }
-        if more.is_empty() {
-            more = "<p class=\"meta\">Closed by a clean re-scan</p>".into();
-        }
-        items.push(format!(
-            "<details>{inner}<div class=\"more\">{more}</div></details>"
-        ));
-    }
-    format!("<h1>Fixes</h1><div class=\"card\"><div class=\"label\">Fixed, 8 weeks</div><div class=\"hero\">{total}</div>{}</div><h2>History</h2>{}",bars(values),capped(items))
-}
-fn agents_screen(snapshot: &Value) -> String {
-    let bom = a(snapshot, "bom");
-    if bom.is_empty() {
-        return "<h1>Agent tools</h1>".to_string()
-            + &empty(
-                "No agent tools listed yet",
-                "<a href=\"/hosts\">See hosts</a>",
-            );
-    }
-    let count = |kind: &str| bom.iter().filter(|b| b["kind"] == kind).count();
-    let mut body=format!("<h1>Agent tools</h1><div class=\"tiles\"><div class=\"card tile\"><div class=\"label\">MCP servers</div><div class=\"num\">{}</div></div><div class=\"card tile\"><div class=\"label\">Skills and CLIs</div><div class=\"num\">{}</div></div></div>",count("mcp"),count("skill")+count("cli"));
-    let hosts: BTreeSet<_> = bom.iter().map(|b| s(b, "host")).collect();
-    for h in hosts {
-        body.push_str(&format!("<h2>{}</h2><div class=\"rows\">", e(h)));
-        for b in bom.iter().filter(|b| b["host"] == h) {
-            let (word, ic) = match s(b, "kind") {
-                "mcp" => ("MCP", "bot"),
-                "skill" => ("Skill", "box"),
-                "cli" => ("CLI", "terminal"),
-                k => (k, "box"),
-            };
-            let bad = a(snapshot, "issues").iter().any(|i| {
-                i["host"] == h
-                    && i["type"] == b["kind"]
-                    && a(i, "advisories")
-                        .first()
-                        .is_some_and(|a| s(a, "package").split(' ').next() == Some(s(b, "name")))
-            });
-            let mut meta = format!(
-                "{} · {}",
-                if s(b, "version").is_empty() {
-                    "?"
-                } else {
-                    s(b, "version")
-                },
-                s(b, "source")
-            );
-            if ["unknown", "stale"].contains(&s(b, "confidence")) {
-                meta.push_str(&format!(" · {}", capitalize(s(b, "confidence"))));
-            }
-            let state = if bad {
-                format!("{word} · Known flaw")
-            } else {
-                word.into()
-            };
-            body.push_str(&row(
-                if bad { "/findings?f=agent" } else { "" },
-                ic,
-                &e(&state),
-                s(b, "name"),
-                &e(&meta),
-                if bad { "crit" } else { "" },
-                "",
-                if bad { "a" } else { "div" },
-            ));
-        }
-        body.push_str("</div>");
-    }
-    body
-}
-fn dot_plot(delays: &[Value], median: f64) -> String {
-    let pos = |d: f64| (d.clamp(60., 604800.) / 60.).ln() / (604800f64 / 60.).ln() * 100.;
-    let mut values: Vec<_> = delays.iter().filter_map(Value::as_f64).collect();
-    values.sort_by(f64::total_cmp);
-    let mut levels: BTreeMap<i64, usize> = BTreeMap::new();
-    let mut dots = String::new();
-    for d in values.into_iter().take(400) {
-        let key = (pos(d) / 2.).round() as i64;
-        let level = levels.entry(key).or_default();
-        let tip = e(&span(Some(d)));
-        dots.push_str(&format!("<circle cx=\"{:.2}%\" cy=\"{}\" r=\"5\" data-tip=\"{tip}\"><title>{tip}</title></circle>",pos(d),109-(*level).min(8)*11));
-        *level += 1;
-    }
-    let mut ticks = String::new();
-    for (t, label, anchor) in [
-        (60., "1 min", "start"),
-        (600., "10 min", "middle"),
-        (3600., "1 h", "middle"),
-        (21600., "6 h", "middle"),
-        (86400., "1 d", "middle"),
-        (604800., "7 d", "end"),
-    ] {
-        ticks.push_str(&format!(
-            "<text x=\"{:.2}%\" y=\"140\" text-anchor=\"{anchor}\">{label}</text>",
-            pos(t)
-        ));
-    }
-    let m = pos(median);
-    let label = e(&span(Some(median)));
-    format!("<svg class=\"dots\" role=\"img\" aria-label=\"Time to warn for each alert, median {label}\"><line class=\"base\" x1=\"0\" x2=\"100%\" y1=\"118\" y2=\"118\"/>{dots}<line class=\"med\" x1=\"{m:.2}%\" x2=\"{m:.2}%\" y1=\"22\" y2=\"118\"/><text class=\"v\" x=\"{m:.2}%\" y=\"14\" text-anchor=\"{}\">median {label}</text>{ticks}</svg>",if m<50.{"start"}else{"end"})
-}
-fn speed_screen(snapshot: &Value) -> String {
-    let sp = &snapshot["speed"];
-    if number(sp, "count") == 0. {
-        return "<h1>Speed</h1>".to_string()
-            + &empty("No timing yet", "<a href=\"/findings\">See findings</a>");
-    }
-    let mut body=format!("<h1>Speed</h1><div class=\"card\"><div class=\"label\">Time to warn you, median</div><div class=\"hero\">{}</div><div class=\"quiet\">Published to alert · {}</div>{}</div><h2>By kind</h2><div class=\"rows\">",span(sp["median"].as_f64()),plural(number(sp,"count")as usize,"alert"),dot_plot(a(sp,"delays"),number(sp,"median")));
-    for r in a(sp, "by_type") {
-        let t = r[0].as_str().unwrap_or("");
-        let name = match t {
-            "browser" => "Browsers",
-            "os" => "System packages",
-            "library" => "Projects",
-            "mcp" => "MCP servers",
-            "skill" => "Skills",
-            "cli" => "Agent tools",
-            _ => "Other",
-        };
-        body.push_str(&row(
-            "",
-            type_icon(t),
-            "",
-            name,
-            &plural(r[2].as_u64().unwrap_or(0) as usize, "alert"),
-            "",
-            &format!("<span class=\"end\">{}</span>", span(r[1].as_f64())),
-            "div",
-        ));
-    }
-    body + "</div>"
-}
-fn news_screen(snapshot: &Value) -> String {
-    let news = a(snapshot, "news");
-    if news.is_empty() {
-        return "<h1>News</h1>".to_string()
-            + &empty(
-                "Public updates unavailable",
-                "No usable public catalog is saved. An online assessment can refresh it.",
-            );
-    }
-    let now = number(snapshot, "now");
-    let mine = news.iter().filter(|n| !a(n, "hosts").is_empty()).count();
-    let mut body=format!("<h1>News</h1><div class=\"card\"><div class=\"label\">Saved local matches</div><div class=\"hero\">{mine}<span class=\"label\"> of {}</span></div>{}</div>",news.len(),coverage_note(&coverage(a(snapshot,"hosts"),now)));
-    if snapshot["feed"]["status"] == "stale" {
-        body.push_str("<p class=\"meta\">Saved CISA KEV data is stale. These updates may be incomplete; an online assessment can refresh them.</p>");
-    }
-    let kev: Vec<_> = news
-        .iter()
-        .filter(|n| n["kev"] == true && !a(n, "hosts").is_empty())
-        .map(|n| news_row(n, now))
-        .collect();
-    if !kev.is_empty() {
-        body.push_str(&format!(
-            "<h2>Exploited</h2><div class=\"rows\">{}</div>",
-            kev.join("")
-        ));
-    }
-    let mut groups: Vec<(String, Vec<&Value>)> = Vec::new();
-    for n in news {
-        let label = day(number(n, "at"), now);
-        if let Some((_, items)) = groups.iter_mut().find(|(name, _)| name == &label) {
-            items.push(n);
-        } else {
-            groups.push((label, vec![n]));
-        }
-    }
-    body.push_str("<div class=\"tl\">");
-    for (label, items) in groups {
-        body.push_str(&format!(
-            "<h2>{}</h2>{}",
-            e(&label),
-            capped(news_rows(&items, now))
-        ));
-    }
-    body + "</div>"
-}
-fn local_time(timestamp: f64) -> Option<libc::tm> {
-    if !timestamp.is_finite() || timestamp < 0. || timestamp > 253402300799. {
-        return None;
-    }
-    let time = timestamp as libc::time_t;
-    let mut out = std::mem::MaybeUninit::<libc::tm>::uninit();
-    #[cfg(unix)]
-    {
-        if unsafe { libc::localtime_r(&time, out.as_mut_ptr()) }.is_null() {
-            return None;
-        }
-    }
-    #[cfg(windows)]
-    {
-        if unsafe { libc::localtime_s(out.as_mut_ptr(), &time) } != 0 {
-            return None;
-        }
-    }
-    Some(unsafe { out.assume_init() })
-}
-fn day(timestamp: f64, now: f64) -> String {
-    let Some(date) = local_time(timestamp) else {
-        return "Unknown date".into();
-    };
-    let same = |other: libc::tm| other.tm_year == date.tm_year && other.tm_yday == date.tm_yday;
-    if local_time(now).is_some_and(same) {
-        return "Today".into();
-    }
-    if local_time(now - 86400.).is_some_and(same) {
-        return "Yesterday".into();
-    }
-    let weekdays = [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-    ];
-    let months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    format!(
-        "{} {} {}",
-        weekdays.get(date.tm_wday as usize).unwrap_or(&""),
-        date.tm_mday,
-        months.get(date.tm_mon as usize).unwrap_or(&"")
-    )
-}
-fn news_rows(items: &[&Value], now: f64) -> Vec<String> {
-    let mut groups: Vec<Vec<&Value>> = Vec::new();
-    for n in items.iter().copied().filter(|n| n["mine"] == true) {
-        if let Some(group) = groups.iter_mut().find(|g| {
-            g[0]["name"] == n["name"] && g[0]["hosts"] == n["hosts"] && g[0]["fixed"] == n["fixed"]
-        }) {
-            group.push(n);
-        } else {
-            groups.push(vec![n]);
-        }
-    }
-    let mut out = Vec::new();
-    for group in groups {
-        if group.len() == 1 {
-            out.push(news_row(group[0], now));
-            continue;
-        }
-        let first = group[0];
-        let kev = group.iter().filter(|n| n["kev"] == true).count();
-        let meta = format!(
-            "{}{} · <span class=\"nw\">{}</span>",
-            e(&news_where(first)),
-            if kev > 0 {
-                format!(" · {kev} exploited")
-            } else {
-                String::new()
-            },
-            e(&ago(number(first, "at"), now))
-        );
-        let ids=group.iter().map(|n|{let id=e(s(n,"advisory"));let url=s(n,"url");if url.is_empty(){format!("<span class=\"nw m\">{id}</span>")}else{format!("<a class=\"lnk nw m\" href=\"{}\" rel=\"noreferrer noopener\" target=\"_blank\">{id}</a>",e(url))}}).collect::<String>();
-        let urgent = kev > 0 && !a(first, "hosts").is_empty();
-        let summary = row(
-            "",
-            if urgent {
-                "alert"
-            } else {
-                type_icon(s(first, "type"))
-            },
-            "",
-            &format!(
-                "{}: {} {}flaws",
-                s(first, "name"),
-                group.len(),
-                if a(first, "hosts").is_empty() {
-                    ""
-                } else {
-                    "new "
-                }
-            ),
-            &meta,
-            if urgent { "crit" } else { "" },
-            "",
-            "summary",
-        );
-        out.push(format!(
-            "<details>{summary}<div class=\"more ids\">{ids}</div></details>"
-        ));
-    }
-    let others: Vec<_> = items
-        .iter()
-        .copied()
-        .filter(|n| n["mine"] != true)
-        .collect();
-    if !others.is_empty() {
-        let title = if others.len() == 1 {
-            "1 advisory doesn't affect you".into()
-        } else {
-            format!("{} advisories don't affect you", others.len())
-        };
-        let inner = others
-            .iter()
-            .map(|n| {
-                row(
-                    s(n, "url"),
-                    "news",
-                    "",
-                    s(n, "advisory"),
-                    &e(&format!(
-                        "{} · {}",
-                        s(n, "source"),
-                        ago(number(n, "at"), now)
-                    )),
-                    "",
-                    "",
-                    "a",
-                )
-                .replacen(
-                    '>',
-                    " rel=\"noreferrer noopener\" target=\"_blank\">",
-                    1,
-                )
-            })
-            .collect::<String>();
-        out.push(format!(
-            "<details>{}{inner}</details>",
-            row("", "news", "", &title, "", "", "", "summary")
-        ));
-    }
-    out
 }
 fn draft_state(d: &Value) -> &str {
     match s(d, "state") {
@@ -1493,79 +1162,6 @@ fn draft_meta(d: &Value) -> String {
     } else {
         format!("{who} · {state}")
     }
-}
-fn mailbox_screen(snapshot: &Value) -> String {
-    let mut body = "<h1>Mailbox</h1>".to_string();
-    let waiting: Vec<_> = a(snapshot, "drafts")
-        .iter()
-        .filter(|d| d["state"] == "waiting")
-        .collect();
-    if !waiting.is_empty() {
-        body.push_str("<h2>Needs your OK</h2>");
-        body.push_str(&capped(
-            waiting
-                .iter()
-                .map(|d| {
-                    row(
-                        &format!("/review/{}", s(d, "id")),
-                        "key",
-                        "",
-                        s(d, "title"),
-                        &e(&draft_meta(d)),
-                        "",
-                        "",
-                        "a",
-                    )
-                })
-                .collect(),
-        ));
-    }
-    if a(snapshot, "readers").is_empty() && waiting.is_empty() {
-        return body
-            + &empty(
-                "No agents read the mailbox yet",
-                &copy_cmd("vorda snippet mcp"),
-            );
-    }
-    body.push_str("<h2>Readers</h2><div class=\"rows\">");
-    for r in a(snapshot, "readers") {
-        let meta = format!(
-            "{} done · read {}",
-            number(r, "acked"),
-            ago(number(r, "last_read"), number(snapshot, "now"))
-        );
-        body.push_str(&format!("<div class=\"row\"><span class=\"ico av\">{}</span><span class=\"body\"><span class=\"title\">{}</span><span class=\"meta\">{}</span></span><span class=\"end\">{}<small>unread</small></span></div>",e(&s(r,"name").chars().take(2).collect::<String>().to_uppercase()),e(s(r,"name")),e(&meta),number(r,"unread")));
-    }
-    body.push_str("</div>");
-    let decided: Vec<_> = a(snapshot, "drafts")
-        .iter()
-        .filter(|d| d["state"] != "waiting")
-        .collect();
-    if !decided.is_empty() {
-        body.push_str("<h2>Decided</h2>");
-        body.push_str(&capped(
-            decided
-                .iter()
-                .map(|d| {
-                    row(
-                        &format!("/review/{}", s(d, "id")),
-                        if ["approved", "fixed", "applying"].contains(&s(d, "state")) {
-                            "check"
-                        } else {
-                            "alert"
-                        },
-                        draft_state(d),
-                        s(d, "title"),
-                        &e(&draft_meta(d)),
-                        "",
-                        "",
-                        "a",
-                    )
-                })
-                .collect(),
-        ));
-    }
-    body
 }
 fn hidden(csrf: &str, fields: &[(&str, &str)]) -> String {
     let mut result = format!(
@@ -1647,7 +1243,7 @@ fn review_screen(snapshot: &Value, id: &str, csrf: &str) -> Option<String> {
         icon("chev"),
         e(s(d, "digest"))
     );
-    Some(format!("{}<h1>{}</h1><div class=\"sub\">{} · drafted by {}</div><div class=\"card receipt-card\"><dl class=\"receipt\">{receipt}</dl><div class=\"summary\"><div class=\"label\">Exact change</div>{change}{test}</div><div class=\"foot\">{acts}{sha}</div></div>",back("/mailbox","Mailbox"),e(s(d,"title")),draft_state(d),e(s(d,"agent"))))
+    Some(format!("{}<h1>{}</h1><div class=\"sub\">{} · drafted by {}</div><div class=\"card receipt-card\"><dl class=\"receipt\">{receipt}</dl><div class=\"summary\"><div class=\"label\">Exact change</div>{change}{test}</div><div class=\"foot\">{acts}{sha}</div></div>",back("/repairs","Repairs"),e(s(d,"title")),draft_state(d),e(s(d,"agent"))))
 }
 fn segmented(m: &Value, csrf: &str, writable: bool) -> String {
     let label = format!(
@@ -1687,74 +1283,476 @@ fn segmented(m: &Value, csrf: &str, writable: bool) -> String {
         )
     }
 }
-fn modes_screen(snapshot: &Value, csrf: &str, writable: bool) -> String {
-    let mut body = "<h1>Modes</h1>".to_string();
-    if !s(snapshot, "control_error").is_empty() {
-        return body
-            + &empty(
-                "Can't read the fleet file",
-                &e(s(snapshot, "control_error")),
-            );
+fn sidecard(title: &str, body: &str) -> String {
+    format!(
+        "<section class=\"panel sidecard\"><h2>{}</h2>{body}</section>",
+        e(title)
+    )
+}
+fn page_grid(main: &str, side: &str) -> String {
+    format!("<div class=\"grid page-grid\">{main}{side}</div>")
+}
+fn inbox_screen(snapshot: &Value) -> String {
+    let h = head(
+        "Inbox",
+        "One private record of findings, with independent read and acknowledgement state for each reader.",
+        "",
+    );
+    let readers = a(snapshot, "readers");
+    let side = if readers.is_empty() {
+        sidecard(
+            "Readers",
+            &(fact(
+                "No readers yet",
+                &para("A reader appears the first time an agent or person reads the mailbox, and the command below sets up the MCP tools for an agent."),
+            ) + &cmdline("vorda snippet mcp")),
+        )
+    } else {
+        let facts: String = readers
+            .iter()
+            .map(|r| {
+                fact(
+                    s(r, "name"),
+                    &para(&format!(
+                        "{} unread · {} acknowledged",
+                        number(r, "unread"),
+                        number(r, "acked")
+                    )),
+                )
+            })
+            .collect();
+        sidecard(
+            "Readers",
+            &format!("{facts}<div class=\"note\">A finding can remain open while individual readers acknowledge the message.</div>"),
+        )
+    };
+    let inbox = &snapshot["inbox"];
+    let messages = a(inbox, "messages");
+    let main = if snapshot["has_scans"] != true && messages.is_empty() {
+        format!(
+            "<section class=\"panel\">{}</section>",
+            state(
+                "inbox",
+                "No messages yet",
+                "Each scan adds new findings and changes here for every reader.",
+                &cmdline("vorda scan"),
+                ""
+            )
+        )
+    } else if messages.is_empty() {
+        format!(
+            "<section class=\"panel\">{}</section>",
+            state(
+                "inbox",
+                "Inbox is clear",
+                "No messages about open findings are waiting.",
+                "",
+                ""
+            )
+        )
+    } else {
+        let open = number(inbox, "open") as usize;
+        let reader = s(inbox, "reader");
+        let meta = if reader.is_empty() {
+            if open == 1 {
+                "1 open message".into()
+            } else {
+                format!("{} open messages", grouped(open))
+            }
+        } else {
+            format!("Reader: {reader} · {} open", grouped(open))
+        };
+        let rows: String = messages
+            .iter()
+            .map(|m| {
+                let issue = a(snapshot, "issues")
+                    .iter()
+                    .find(|i| a(i, "keys").contains(&m["key"]));
+                let href = issue.map_or(String::new(), |i| format!("/finding/{}", s(i, "id")));
+                let sub = [
+                    s(m, "host"),
+                    if m["kind"] == "health" { "Health" } else { s(m, "title") },
+                ]
+                .into_iter()
+                .filter(|x| !x.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
+                let side = match m["unread"].as_i64() {
+                    Some(1) => "Unread",
+                    Some(_) => "Read",
+                    None => "",
+                };
+                let ic = if m["kind"] == "health" { "warn" } else { "pkg" };
+                if href.is_empty() {
+                    format!(
+                        "<div class=\"listrow\"><div class=\"badge\">{}</div><div class=\"row-text\"><div class=\"name\">{}</div><div class=\"desc\">{}</div></div><div class=\"side\">{}</div></div>",
+                        icon(ic),
+                        e(s(m, "headline")),
+                        e(&sub),
+                        side
+                    )
+                } else {
+                    scope_row(&href, ic, s(m, "headline"), &sub, side)
+                }
+            })
+            .collect();
+        let more = if open > messages.len() {
+            format!(
+                "<div class=\"pad\"><p class=\"row-sub\">{} more</p></div>",
+                grouped(open - messages.len())
+            )
+        } else {
+            String::new()
+        };
+        format!(
+            "<section class=\"panel\"><div class=\"panel-header\"><h2>Messages</h2><span class=\"meta\">{}</span></div><div class=\"entity\">{rows}</div>{more}</section>",
+            e(&meta)
+        )
+    };
+    h + &page_grid(&main, &side)
+}
+const REPAIR_TABS: [(&str, &str); 4] = [
+    ("needs", "Needs review"),
+    ("approved", "Approved"),
+    ("verified", "Verified"),
+    ("history", "History"),
+];
+fn draft_tab(d: &Value) -> &str {
+    match s(d, "state") {
+        "waiting" => "needs",
+        "approved" | "applying" | "published" | "pr-pushed" => "approved",
+        _ => "history",
     }
-    let modes = a(snapshot, "modes");
-    if modes.is_empty() {
-        return body
-            + &empty(
-                "Add a fix config to manage modes",
-                "Restart the dashboard with --fix-config pointing to your repair config.",
-            );
+}
+fn proposed(d: &Value) -> String {
+    let place = if s(d, "where").is_empty() {
+        s(d, "host")
+    } else {
+        s(d, "where")
+    };
+    let meta = [place, s(d, "package")]
+        .into_iter()
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    let steps = [
+        ("1. Draft", "Review exact changes"),
+        ("2. Approve", "Owner-authorized decision"),
+        ("3. Apply", "Checks and rollback"),
+        ("4. Verify", "Rescan and close"),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(k, (b, p))| {
+        format!(
+            "<div{}><b>{b}</b>{p}</div>",
+            if k == 0 { " class=\"now\"" } else { "" }
+        )
+    })
+    .collect::<String>();
+    let mut code = String::new();
+    for (k, v) in [
+        ("item", s(d, "item").to_string()),
+        (
+            "change",
+            if s(d, "old").is_empty() && s(d, "new").is_empty() {
+                String::new()
+            } else {
+                format!("{} → {}", s(d, "old"), s(d, "new"))
+            },
+        ),
+        ("scope", place.to_string()),
+        ("risk", s(d, "risk").to_string()),
+        ("undo", s(d, "undo").to_string()),
+    ] {
+        if !v.is_empty() {
+            code.push_str(&format!("<span class=\"k\">{k:<8}</span>{}\n", e(&v)));
+        }
     }
-    let can_write = writable && s(snapshot, "fleet_note").is_empty();
-    if writable && !s(snapshot, "fleet_note").is_empty() {
-        body.push_str(&format!(
-            "<div class=\"quiet\">{}</div>",
-            e(s(snapshot, "fleet_note"))
+    format!(
+        "<section class=\"panel\"><div class=\"panel-header\"><h2>Proposed change</h2><span class=\"meta\">{}</span></div><div class=\"pad\"><div class=\"proposal\">{}</div><div class=\"row-sub\">{}</div><div class=\"workflow\">{steps}</div><div class=\"code\">{}</div><a class=\"btn primary\" href=\"/review/{}\">Inspect review →</a><p class=\"row-sub\">Preview only. No package or file is modified.</p></div></section>",
+        e(&meta),
+        e(s(d, "title")),
+        e(&draft_meta(d)),
+        code.trim_end(),
+        e(s(d, "id"))
+    )
+}
+fn repairs_screen(snapshot: &Value, tab: &str) -> String {
+    let tab = REPAIR_TABS
+        .iter()
+        .find(|(k, _)| *k == tab)
+        .map_or("needs", |(k, _)| *k);
+    let mut out = head(
+        "Repairs",
+        "Proposed changes, decisions, rollback information, and proof that a fix worked.",
+        "",
+    );
+    out.push_str("<nav class=\"subnav\">");
+    for (k, label) in REPAIR_TABS {
+        out.push_str(&format!(
+            "<a href=\"/repairs?tab={k}\"{}>{label}</a>",
+            if k == tab {
+                " aria-current=\"page\""
+            } else {
+                ""
+            }
         ));
     }
-    let fleet = &modes[0];
-    body.push_str(&format!("<div class=\"card\"><div class=\"label\">Fleet default</div><div class=\"hero\">{}</div><div class=\"quiet\">{}</div><div class=\"acts\">{}</div></div>",capitalize(s(fleet,"mode")),e(s(fleet,"why")),segmented(fleet,csrf,can_write)));
-    for (scope, heading, ic) in [
-        ("machine", "Machines", "server"),
-        ("agent", "Agents", "bot"),
-    ] {
-        let rows: Vec<_> = modes.iter().filter(|m| m["scope"] == scope).collect();
-        if !rows.is_empty() {
-            body.push_str(&format!("<h2>{heading}</h2><div class=\"rows\">"));
-            for m in rows {
-                body.push_str(&format!("<div class=\"row wrap\"><span class=\"ico\">{}</span><span class=\"body\"><span class=\"title\">{}</span><span class=\"meta\">{}</span></span>{}</div>",icon(ic),e(s(m,"name")),e(s(m,"why")),segmented(m,csrf,can_write)));
-            }
-            body.push_str("</div>");
+    out.push_str("</nav>");
+    let safety: String = [
+        (
+            "Exact change",
+            "Review the patch, package versions, and resolved dependency state.",
+        ),
+        (
+            "Policy",
+            "Watch and Advise modes cannot silently apply changes.",
+        ),
+        (
+            "Rollback",
+            "Checks or incomplete rescans trigger rollback in supported repair flows.",
+        ),
+        (
+            "Proof",
+            "A completed rescan establishes whether the finding can be closed.",
+        ),
+    ]
+    .iter()
+    .map(|(t, p)| fact(t, &para(p)))
+    .collect();
+    let side = sidecard("Safety conditions", &safety);
+    let lone = |body: String| format!("<section class=\"panel\">{body}</section>");
+    let main = if snapshot["has_scans"] != true
+        && a(snapshot, "drafts").is_empty()
+        && a(snapshot, "fixes").is_empty()
+    {
+        lone(state(
+            "findings",
+            "No repairs yet",
+            "Vorda shows findings, coverage and inventory after the first scan.",
+            &cmdline("vorda scan"),
+            "",
+        ))
+    } else if tab == "verified" {
+        let fixes = a(snapshot, "fixes");
+        if fixes.is_empty() {
+            lone(state("check", "No verified repairs", "", "", "small"))
+        } else {
+            let now = number(snapshot, "now");
+            let rows: String = fixes
+                .iter()
+                .map(|f| {
+                    let who = if s(f, "actor_kind").is_empty() {
+                        s(f, "actor").to_string()
+                    } else {
+                        format!("{} ({})", s(f, "actor"), s(f, "actor_kind"))
+                    };
+                    let proof = if f["proof"].is_null() {
+                        "gone on re-scan".into()
+                    } else {
+                        format!("proof scan #{}", f["proof"])
+                    };
+                    let mut line = entry(
+                        &format!("Fixed: {}", s(f, "what")),
+                        &format!(
+                            "{} · {} by {who} · {proof}",
+                            s(f, "host"),
+                            ago(number(f, "at"), now)
+                        ),
+                    );
+                    if !s(f, "undo").is_empty() {
+                        line.push_str(&cmdline(s(f, "undo")));
+                    }
+                    line
+                })
+                .collect();
+            panel(
+                "Verified",
+                None,
+                &format!("<div class=\"mini\">{rows}</div>"),
+            )
         }
+    } else if snapshot["repairs_on"] != true {
+        lone(state(
+            "repairs",
+            "Repairs are off",
+            "Start the dashboard with --fix-config to draft repairs. Findings still show fixes to apply by hand.",
+            &cmdline("vorda dashboard --fix-config repair.json"),
+            "",
+        ))
+    } else {
+        let drafts: Vec<_> = a(snapshot, "drafts")
+            .iter()
+            .filter(|d| draft_tab(d) == tab)
+            .collect();
+        if drafts.is_empty() {
+            let title = match tab {
+                "needs" => "No repairs to review",
+                "approved" => "No approved repairs",
+                _ => "No repair history",
+            };
+            lone(state("repairs", title, "", "", "small"))
+        } else if tab == "needs" {
+            format!(
+                "<div class=\"stack\">{}</div>",
+                drafts.into_iter().map(proposed).collect::<String>()
+            )
+        } else {
+            let rows: String = drafts
+                .iter()
+                .map(|d| {
+                    action_row(
+                        &format!("/review/{}", s(d, "id")),
+                        "",
+                        s(d, "title"),
+                        draft_state(d),
+                        &draft_meta(d),
+                    )
+                })
+                .collect();
+            panel(
+                REPAIR_TABS
+                    .iter()
+                    .find(|(k, _)| *k == tab)
+                    .map_or("", |(_, l)| *l),
+                None,
+                &format!("<div class=\"list\">{rows}</div>"),
+            )
+        }
+    };
+    out + &page_grid(&main, &side)
+}
+fn mode_line(mode: &str) -> &'static str {
+    match mode {
+        "watch" => "Report findings without proposing changes.",
+        "fix" => "Permit explicitly allowed, approved remediation.",
+        _ => "Prepare guidance and changes for owner review.",
     }
-    if !a(snapshot, "matrix").is_empty() {
-        body.push_str("<h2>Who can change what</h2><div class=\"card\"><div class=\"quiet\">The most an agent may do on each machine</div><div class=\"scroll\"><table class=\"mx\"><tr><th></th>");
-        for host in snapshot["known"][0].as_array().into_iter().flatten() {
-            body.push_str(&format!(
-                "<th scope=\"col\">{}</th>",
-                e(host.as_str().unwrap_or(""))
-            ));
-        }
-        body.push_str("</tr>");
-        for r in a(snapshot, "matrix") {
-            let agent = r[0].as_str().unwrap_or("");
-            body.push_str(&format!(
-                "<tr><th scope=\"row\">{}</th>",
-                e(if agent == "*" { "any other" } else { agent })
-            ));
-            for cell in r[1].as_array().into_iter().flatten() {
-                let word = cell[0].as_str().unwrap_or("");
-                let rule = e(cell[1].as_str().unwrap_or(""));
-                body.push_str(&format!(
-                    "<td class=\"w-{}\" data-tip=\"{rule}\" title=\"{rule}\">{}</td>",
-                    word.to_lowercase(),
-                    e(word)
-                ));
+}
+fn policy_screen(snapshot: &Value, csrf: &str, writable: bool) -> String {
+    let h = head(
+        "Policy",
+        "Decide what Vorda can inspect, suggest, and change for each machine and agent.",
+        "",
+    );
+    let modes = a(snapshot, "modes");
+    let Some(fleet) = modes
+        .first()
+        .filter(|_| s(snapshot, "control_error").is_empty())
+    else {
+        return h + &format!(
+            "<div class=\"grid\"><section class=\"panel wide\">{}</section></div>",
+            state(
+                "warn",
+                "Can't read the fleet file",
+                s(snapshot, "control_error"),
+                "",
+                "err"
+            )
+        );
+    };
+    let can_write = writable && s(snapshot, "fleet_note").is_empty();
+    let mode = s(fleet, "mode");
+    let boxes: String = crate::policy::MODES
+        .iter()
+        .map(|m| {
+            let on = if *m == mode { " on" } else { "" };
+            let inner = format!(
+                "<b>{}</b><span>{}</span>",
+                capitalize(m),
+                mode_line(m)
+            );
+            if can_write {
+                format!(
+                    "<button class=\"modebox{on}\" name=\"mode\" value=\"{m}\" aria-pressed=\"{}\">{inner}</button>",
+                    *m == mode
+                )
+            } else {
+                format!("<div class=\"modebox{on}\">{inner}</div>")
             }
-            body.push_str("</tr>");
-        }
-        body.push_str("</table></div></div>");
+        })
+        .collect();
+    let boxes = if can_write {
+        format!(
+            "<form class=\"modegrid\" method=\"post\" action=\"/mode\" aria-label=\"Mode for the fleet\">{}{boxes}</form>",
+            hidden(csrf, &[("scope", "fleet"), ("name", "")])
+        )
+    } else {
+        format!("<div class=\"modegrid\">{boxes}</div>")
+    };
+    let note = if !writable {
+        "Read-only. Start the dashboard with --allow-writes to change the mode."
+    } else {
+        s(snapshot, "fleet_note")
+    };
+    let note = if note.is_empty() {
+        String::new()
+    } else {
+        format!("<div class=\"note\">{}</div>", e(note))
+    };
+    let top = format!(
+        "<section class=\"panel\"><div class=\"pad top\"><h2>Default mode</h2><p class=\"row-sub\">Current policy is {}. Changes still need a reviewed draft and required approval.</p>{boxes}{note}</div></section>",
+        e(&capitalize(mode))
+    );
+    let rules = |scope: &str| -> String {
+        modes
+            .iter()
+            .filter(|m| m["scope"] == scope)
+            .map(|m| {
+                format!(
+                    "<div class=\"data-row\"><div><strong>{}</strong><small>{}</small></div><div>{}</div></div>",
+                    e(s(m, "name")),
+                    e(s(m, "why")),
+                    if can_write {
+                        segmented(m, csrf, true)
+                    } else {
+                        e(&capitalize(s(m, "mode")))
+                    }
+                )
+            })
+            .collect()
+    };
+    let machines = rules("machine");
+    let machines = if machines.is_empty() {
+        state(
+            "inventory",
+            "No inventory yet",
+            "Machines appear here after their first scan. The default mode applies to all of them.",
+            "",
+            "small",
+        )
+    } else {
+        format!("<div class=\"pad\">{machines}</div>")
+    };
+    let mut main = panel("Machine rules", None, &machines);
+    let agents = rules("agent");
+    if !agents.is_empty() {
+        main.push_str(&panel(
+            "Agent rules",
+            None,
+            &format!("<div class=\"pad\">{agents}</div>"),
+        ));
     }
-    body
+    let never: String = crate::policy::NEVER
+        .iter()
+        .map(|n| {
+            fact(
+                match *n {
+                    "kernel" => "Kernel",
+                    "bootloader" => "Bootloader",
+                    "package-manager" => "Package manager",
+                    other => other,
+                },
+                "",
+            )
+        })
+        .collect();
+    let side = sidecard(
+        "Protected by default",
+        &format!("<p class=\"lead\">Vorda never changes these in any mode.</p>{never}"),
+    );
+    h + &top + &page_grid(&format!("<div class=\"stack\">{main}</div>"), &side)
 }
 pub fn render(
     snapshot: &Value,
@@ -1766,24 +1764,22 @@ pub fn render(
     writable: bool,
 ) -> Option<String> {
     Some(match screen {
-        "now" => now_screen(snapshot),
-        "hosts" => hosts_screen(snapshot),
-        "findings" => findings_screen(snapshot, filter, host, ""),
-        "finding" => return finding_screen(snapshot, id),
-        "fixes" => fixes_screen(snapshot),
-        "agents" => agents_screen(snapshot),
-        "speed" => speed_screen(snapshot),
-        "news" => news_screen(snapshot),
-        "mailbox" => mailbox_screen(snapshot),
+        "overview" => overview_screen(snapshot),
+        "findings" => findings_screen(snapshot, filter, host, "", id),
+        "finding" => {
+            let i = a(snapshot, "issues").iter().find(|i| i["id"] == id)?;
+            let tab = if i["type"] == "health" {
+                "coverage"
+            } else {
+                "all"
+            };
+            findings_screen(snapshot, tab, "", "", id)
+        }
+        "inventory" => inventory_screen(snapshot, id),
+        "inbox" => inbox_screen(snapshot),
         "review" => return review_screen(snapshot, id, csrf),
-        "modes" => modes_screen(snapshot, csrf, writable),
-        "more" => format!(
-            "<h1>More</h1><div class=\"rows\">{}</div>",
-            NAV.iter()
-                .filter(|(k, _, _, _)| !["now", "hosts", "findings", "fixes"].contains(k))
-                .map(|(_, href, label, ic)| row(href, ic, "", label, "", "", "", "a"))
-                .collect::<String>()
-        ),
+        "repairs" => repairs_screen(snapshot, id),
+        "policy" => policy_screen(snapshot, csrf, writable),
         _ => return None,
     })
 }

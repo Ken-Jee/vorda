@@ -427,8 +427,8 @@ fn a_healthy_finding_survives_an_uncheckable_entry_without_live_requests() {
         0,
         "unexpected feed request: {data}"
     );
-    assert_eq!(output.status.code(), Some(2), "{data}");
-    assert_eq!(data["status"], "unknown", "{data}");
+    assert_eq!(output.status.code(), Some(3), "{data}");
+    assert_eq!(data["status"], "vulnerable", "{data}");
     assert_eq!(data["coverage_evidence"]["status"], "partial", "{data}");
     assert_eq!(data["packages"].as_array().unwrap().len(), 1, "{data}");
     assert_eq!(data["packages"][0]["name"], "lodash", "{data}");

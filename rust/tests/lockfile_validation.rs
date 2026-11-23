@@ -42,10 +42,12 @@ fn accepted() -> Vec<(&'static str, String)> {
         "yarn.lock",
         "# yarn lockfile v1\nlodash@4.17.20:\n  version \"4.17.20\"\n".into(),
     ));
-    cases.push((
-        "yarn.lock",
-        "__metadata:\n  version: 8\n\"lodash@npm:4.17.20\":\n  version: 4.17.20\n".into(),
-    ));
+    for v in [8, 10] {
+        cases.push((
+            "yarn.lock",
+            format!("__metadata:\n  version: {v}\n\"lodash@npm:4.17.20\":\n  version: 4.17.20\n"),
+        ));
+    }
     for v in [0, 1, 2] {
         cases.push(("bun.lock", format!("{{\"lockfileVersion\":{v},\"packages\":{{\"lodash\":[\"lodash@4.17.20\",\"\",{{}},\"fixture\"]}}}}")));
     }
@@ -118,6 +120,7 @@ fn accepted_lockfile_versions_keep_exact_packages() {
 
 #[test]
 fn unsupported_and_missing_format_versions_are_unknown() {
+    let berry_version = regex::Regex::new(r"(?m)^  version: (8|10)$").unwrap();
     for (name, text) in accepted() {
         let (marker, old) = match name {
             "package-lock.json" | "bun.lock" => ("lockfileVersion", ":"),
@@ -130,7 +133,7 @@ fn unsupported_and_missing_format_versions_are_unknown() {
                 let future = if text.starts_with('#') {
                     text.replace("v1", "v999")
                 } else {
-                    text.replace("version: 8", "version: 999")
+                    berry_version.replace(&text, "  version: 999").into_owned()
                 };
                 let (code, d) = inventory(name, &future);
                 assert_unknown(code, &d, name, "999");
@@ -264,6 +267,44 @@ fn content_without_readable_packages_is_unknown_but_declared_empty_is_complete()
     assert_eq!(d["errors"], json!([]), "{d}");
 }
 
+/// pnpm 11 and later write the package manager's own lock as a first YAML document.
+const PNPM_MULTI_DOCUMENT: &str = "---\nlockfileVersion: '9.0'\n\nimporters:\n\n  .:\n    configDependencies: {}\n    packageManagerDependencies:\n      pnpm:\n        specifier: 12.21.0\n        version: 12.21.0\n\npackages:\n\n  pnpm@12.21.0:\n    resolution: {integrity: fixture}\n\n  lodash@4.17.20:\n    resolution: {integrity: fixture}\n\n---\nlockfileVersion: '9.0'\n\nimporters:\n\n  .:\n    dependencies:\n      lodash:\n        specifier: 4.17.20\n        version: 4.17.20\n\npackages:\n\n  lodash@4.17.20:\n    resolution: {integrity: fixture}\n\n  '@babel/traverse@7.23.0':\n    resolution: {integrity: fixture}\n";
+
+#[test]
+fn pnpm_multi_document_lock_reads_every_document_once() {
+    let (code, d) = inventory("pnpm-lock.yaml", PNPM_MULTI_DOCUMENT);
+    assert_eq!(code, 0, "{d}");
+    assert_eq!(d["status"], "complete", "{d}");
+    let mut found: Vec<_> = d["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            format!(
+                "{}@{}",
+                p["name"].as_str().unwrap(),
+                p["version"].as_str().unwrap()
+            )
+        })
+        .collect();
+    found.sort();
+    assert_eq!(
+        found,
+        ["@babel/traverse@7.23.0", "lodash@4.17.20", "pnpm@12.21.0"],
+        "{d}"
+    );
+}
+
+#[test]
+fn pnpm_later_document_with_unsupported_version_is_unknown() {
+    let (head, tail) = PNPM_MULTI_DOCUMENT
+        .rsplit_once("lockfileVersion: '9.0'")
+        .unwrap();
+    let future = format!("{head}lockfileVersion: '999.0'{tail}");
+    let (code, d) = inventory("pnpm-lock.yaml", &future);
+    assert_unknown(code, &d, "pnpm-lock.yaml", "999.0");
+}
+
 #[test]
 fn future_uv_revision_is_unknown() {
     let (code, d) = inventory(
@@ -284,7 +325,7 @@ fn future_bun_config_version_is_unknown() {
 
 #[test]
 fn supported_secondary_markers_preserve_packages() {
-    for revision in [1, 2, 3] {
+    for revision in [1, 2, 3, 4, 5] {
         let (code, d) = inventory("uv.lock", &format!("version = 1\nrevision = {revision}\n[[package]]\nname = \"example\"\nversion = \"1.0.0\"\n"));
         assert_eq!(code, 0, "{d}");
         assert_eq!(d["packages"][0]["name"], "example");

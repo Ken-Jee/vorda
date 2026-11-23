@@ -71,62 +71,69 @@ fn unknown(root: &Path, names: &[&str]) -> Value {
     result
 }
 
-macro_rules! requirement_lines_case {
-    ($test:ident, $text:literal) => {
-        #[test]
-        fn $test() {
-            let root = tempfile::tempdir().unwrap();
-            fs::write(root.path().join("requirements.txt"), "example==1.2.3\n").unwrap();
-            fs::create_dir(root.path().join("requirements")).unwrap();
-            fs::write(root.path().join("requirements/prod.txt"), $text).unwrap();
-            unknown(root.path(), &["requirements/prod.txt"]);
-        }
-    };
+#[test]
+fn an_unpinned_requirement_is_named_without_its_line_or_comment() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("requirements.txt"),
+        "example==1.2.3\nhttpx            # REST adapters\nfastapi>=0.115\n",
+    )
+    .unwrap();
+    let result = unknown(root.path(), &["httpx==VERSION", "fastapi==VERSION"]);
+    let errors = result["errors"].as_array().unwrap();
+    assert!(errors.iter().all(|e| e["not_covered"] == true), "{result}");
+    assert!(
+        !result["errors"].to_string().contains("REST adapters"),
+        "{result}"
+    );
 }
-requirement_lines_case!(
-    nested_short_index_option,
-    "-i https://example.invalid/simple\nDjango==2.2\n"
-);
-requirement_lines_case!(
-    nested_index_and_trusted_host,
-    "--index-url https://example.invalid/simple\n--trusted-host example.invalid\nDjango==2.2\n"
-);
-requirement_lines_case!(
-    nested_extra_index_option,
-    "--extra-index-url https://example.invalid/simple\nDjango==2.2\n"
-);
-requirement_lines_case!(nested_prerelease_option, "--pre\nDjango==2.2\n");
-requirement_lines_case!(nested_no_binary_option, "--no-binary :all:\nDjango==2.2\n");
-requirement_lines_case!(
-    nested_only_binary_option,
-    "--only-binary :all:\nDjango==2.2\n"
-);
-requirement_lines_case!(
-    nested_prefer_binary_option,
-    "--prefer-binary\nDjango==2.2\n"
-);
-requirement_lines_case!(
-    nested_require_hashes_option,
-    "--require-hashes\nDjango==2.2\n"
-);
-requirement_lines_case!(nested_short_find_links_option, "-f ./wheels\nDjango==2.2\n");
-requirement_lines_case!(
-    nested_find_links_option,
-    "--find-links ./wheels\nDjango==2.2\n"
-);
-requirement_lines_case!(nested_requirement_include, "-r shared.txt\nDjango==2.2\n");
-requirement_lines_case!(
-    nested_constraint_include,
-    "-c constraints.txt\nDjango==2.2\n"
-);
-requirement_lines_case!(nested_editable_option, "-e ./local\nDjango==2.2\n");
-requirement_lines_case!(nested_spaced_extras, "requests [security] == 2.19.0\n");
-requirement_lines_case!(nested_parenthesised_specifier, "Django (==2.2)\n");
-requirement_lines_case!(nested_prose_beside_pin, "We pin these:\nDjango==2.2\n");
-requirement_lines_case!(
-    nested_comments_beside_pin,
-    "# generated input\nDjango==2.2 # keep pinned\n"
-);
+
+/// A file of requirement lines in a requirements folder is read like requirements.txt: option
+/// lines are skipped, exact pins are checked, and anything else leaves the scan unknown.
+#[test]
+fn requirements_folder_files_are_read_like_requirements_txt() {
+    for options in [
+        "-i https://example.invalid/simple",
+        "--index-url https://example.invalid/simple\n--trusted-host example.invalid",
+        "--extra-index-url https://example.invalid/simple",
+        "--pre",
+        "--no-binary :all:",
+        "--only-binary :all:",
+        "--prefer-binary",
+        "--require-hashes",
+        "-f ./wheels",
+        "--find-links ./wheels",
+        "-c constraints.txt",
+        "# generated input",
+    ] {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("requirements")).unwrap();
+        fs::write(
+            root.path().join("requirements/prod.txt"),
+            format!("{options}\nexample==1.2.3 # keep pinned\n"),
+        )
+        .unwrap();
+        let (exit, result) = scan(root.path(), "PyPI");
+        assert_eq!(exit, 0, "{options}: {result}");
+        assert_eq!(
+            result["coverage_evidence"]["status"], "complete",
+            "{result}"
+        );
+    }
+    for text in [
+        "-r shared.txt\nDjango==2.2\n",
+        "-e ./local\nDjango==2.2\n",
+        "requests [security] == 2.19.0\n",
+        "Django (==2.2)\n",
+        "We pin these:\nDjango==2.2\n",
+    ] {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("requirements.txt"), "example==1.2.3\n").unwrap();
+        fs::create_dir(root.path().join("requirements")).unwrap();
+        fs::write(root.path().join("requirements/prod.txt"), text).unwrap();
+        unknown(root.path(), &["prod.txt"]);
+    }
+}
 
 macro_rules! pyproject_declaration_case {
     ($test:ident, $text:literal) => {
@@ -244,12 +251,6 @@ fn unread_manifests_cannot_hide_beside_clean_requirements() {
     assert!(result["errors"].to_string().contains("not supported"));
 }
 
-#[test]
-fn empty_project_is_unknown() {
-    let root = tempfile::tempdir().unwrap();
-    unknown(root.path(), &["No package versions"]);
-}
-
 macro_rules! unread_case {
     ($test:ident, $name:literal) => {
         #[test]
@@ -284,8 +285,6 @@ unread_case!(pdm_is_unknown, "pdm.lock");
 unread_case!(mix_is_unknown, "mix.lock");
 unread_case!(pubspec_is_unknown, "pubspec.lock");
 unread_case!(deno_is_unknown, "deno.lock");
-unread_case!(requirements_folder_is_unknown, "requirements/custom.txt");
-unread_case!(requirements_input_is_unknown, "requirements-dev.in");
 unread_case!(reversed_requirements_is_unknown, "dev-requirements.txt");
 unread_case!(setup_script_is_unknown, "setup.py");
 unread_case!(setup_config_is_unknown, "setup.cfg");
@@ -325,6 +324,47 @@ fn skipped_symlink_is_unknown() {
 #[test]
 fn skipped_hard_link_is_unknown() {
     skipped_link(false);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_and_example_files_vorda_cannot_check_are_listed_not_unknown() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("requirements.txt"), "example==1.2.3\n").unwrap();
+    let fixtures = [
+        ("tests/fixtures/app/Pipfile", "[packages]\nDjango='==2.2'\n"),
+        ("Examples/demo/pom.xml", "<project/>"),
+        ("web/__tests__/broken/package-lock.json", "{"),
+    ];
+    for (path, text) in fixtures {
+        let path = root.path().join(path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
+    }
+    let (exit, result) = scan(root.path(), "PyPI");
+    assert_eq!(exit, 0, "{result}");
+    assert_eq!(result["status"], "no-known-findings", "{result}");
+    assert_eq!(result["coverage_evidence"]["status"], "partial", "{result}");
+    let skipped: Vec<&str> = result["coverage_evidence"]["observations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|o| o["kind"] == "not-covered-test-data")
+        .map(|o| o["path"].as_str().unwrap())
+        .collect();
+    for (path, _) in fixtures {
+        assert!(
+            skipped.iter().any(|s| s.ends_with(path)),
+            "{path}: {result}"
+        );
+        assert!(result["warnings"].to_string().contains(path), "{result}");
+    }
+    // Outside a test folder, or as the scan root itself, the same file still means unknown.
+    unknown(&root.path().join("tests/fixtures/app"), &["Pipfile"]);
+    let app = root.path().join("app");
+    fs::create_dir(&app).unwrap();
+    fs::write(app.join("Pipfile"), "[packages]\nDjango='==2.2'\n").unwrap();
+    unknown(root.path(), &["app/Pipfile"]);
 }
 
 #[cfg(unix)]
@@ -414,11 +454,6 @@ mixed_unread_case!(
 mixed_unread_case!(
     underscore_requirements_input_cannot_hide,
     "dev_requirements.in",
-    "Django==2.2\n"
-);
-mixed_unread_case!(
-    nested_requirements_cannot_hide,
-    "requirements/production/base.txt",
     "Django==2.2\n"
 );
 mixed_unread_case!(
@@ -717,26 +752,11 @@ fn pip_tools_inputs_are_covered_only_by_a_supported_compiled_same_stem() {
 }
 
 #[test]
-fn unmatched_or_unread_compiled_inputs_remain_unknown() {
-    for name in ["requirements-dev", "requirements/base"] {
-        let root = tempfile::tempdir().unwrap();
-        fs::write(root.path().join("requirements.txt"), "example==1.2.3\n").unwrap();
-        let path = root.path().join(name);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path.with_extension("in"), "Django\n").unwrap();
-        if name.contains('/') {
-            fs::write(path.with_extension("txt"), "Django==2.2\n").unwrap();
-        }
-        unknown(
-            root.path(),
-            &[path
-                .with_extension("in")
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()],
-        );
-    }
+fn an_uncompiled_input_is_read_and_its_unpinned_lines_stay_unknown() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("requirements.txt"), "example==1.2.3\n").unwrap();
+    fs::write(root.path().join("requirements-dev.in"), "Django\n").unwrap();
+    unknown(root.path(), &["requirements-dev.in", "Django==VERSION"]);
 }
 
 mixed_unread_case!(csharp_project_without_lock_is_unknown, "src/App/App.csproj", "<Project><ItemGroup><PackageReference Include=\"Newtonsoft.Json\" Version=\"12.0.1\"/></ItemGroup></Project>");
@@ -782,11 +802,6 @@ fn requirement_direct_references_are_not_mistaken_for_prose() {
     unknown(root.path(), &["urls.txt"]);
 }
 
-mixed_unread_case!(
-    pylock_is_recognised_unsupported,
-    "pylock.toml",
-    "lock-version='1.0'\n"
-);
 mixed_unread_case!(
     swift_lock_is_recognised_unsupported,
     "Package.resolved",

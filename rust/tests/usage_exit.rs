@@ -13,7 +13,7 @@ fn usage_errors_are_distinct_from_scan_unknown() {
         vec!["--state", "--help"],
         vec!["db", "update", "--from", "--json"],
         vec!["agentbom", "--root", "--offline"],
-        vec!["scan", "folder"],
+        vec!["inventory", "folder"],
         vec!["inventory", "--format", "invalid"],
         vec!["mail", "list", "--reader", "test", "--limit", "bad"],
         vec!["not-a-command"],
@@ -37,6 +37,9 @@ fn usage_errors_are_distinct_from_scan_unknown() {
         vec!["mail", "frob", "--reader", "test"],
         vec!["mail", "snooze", "--reader", "test", "--seconds", "x"],
         vec!["action-scan", "extra"],
+        vec!["update", "--typo"],
+        vec!["update", "--version"],
+        vec!["update", "--version", "../x"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
             .arg("--state")
@@ -47,6 +50,29 @@ fn usage_errors_are_distinct_from_scan_unknown() {
         assert_eq!(output.status.code(), Some(64), "{args:?}: {output:?}");
         let error: Value = serde_json::from_slice(&output.stderr).unwrap();
         assert_eq!(error["status"], "usage_error");
+    }
+}
+
+#[test]
+fn a_dashboard_token_is_never_invented_where_output_is_not_a_terminal() {
+    // Piped stdout stands for a log such as the systemd journal: a random token printed there
+    // would let a log reader log in, so --token needs VORDA_DASHBOARD_TOKEN instead.
+    let state = tempfile::tempdir().unwrap();
+    for flag in ["--token", "--allow-writes"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
+            .arg("--state")
+            .arg(state.path())
+            .args(["dashboard", "--port", "0", flag])
+            .env_remove("VORDA_DASHBOARD_TOKEN")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(64), "{flag}: {output:?}");
+        assert!(output.stdout.is_empty(), "{flag}: {output:?}");
+        let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+        assert!(
+            error.to_string().contains("VORDA_DASHBOARD_TOKEN"),
+            "{error}"
+        );
     }
 }
 

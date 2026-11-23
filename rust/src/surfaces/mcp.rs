@@ -90,7 +90,7 @@ fn call_with_store(
     let schemas = schemas(repair);
     match field(request, "method")? {
         "initialize" => Ok(
-            json!({"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":if repair{"vorda-fix"}else{"vorda"},"version":"0.1.0"}}),
+            json!({"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":if repair{"vorda-fix"}else{"vorda"},"version":env!("CARGO_PKG_VERSION")}}),
         ),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(

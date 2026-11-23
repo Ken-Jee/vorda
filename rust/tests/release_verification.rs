@@ -129,25 +129,23 @@ fn tampered_artifact_signature_comment_or_wrong_key_is_rejected() {
 // it. Making one here needs a committed secret key, so this uses a non-matching signature and the
 // valid-signature case was proven by hand.
 #[test]
-fn an_adjacent_key_is_not_trusted_and_a_build_without_a_release_key_is_unsigned() {
+fn an_adjacent_key_is_not_trusted_and_a_signature_beside_the_binary_is_checked_with_the_built_in_key(
+) {
     let dir = tempfile::tempdir().unwrap();
     let exe = dir.path().join("vorda");
     fs::copy(env!("CARGO_BIN_EXE_vorda"), &exe).unwrap();
     fs::copy(fixture("release.pub"), dir.path().join("vorda-release.pub")).unwrap();
-    fs::copy(fixture("payload.minisig"), dir.path().join("vorda.minisig")).unwrap();
     let (code, report) = run(exe.as_os_str(), &[]);
     assert_eq!(code, Some(2), "{report}");
-    assert_eq!(report["status"], "unsigned");
-    assert!(
-        report["detail"]
-            .as_str()
-            .unwrap()
-            .contains("no release key built in"),
-        "{report}"
-    );
+    assert_eq!(report["status"], "unsigned", "{report}");
+    fs::copy(fixture("payload.minisig"), dir.path().join("vorda.minisig")).unwrap();
+    let (code, report) = run(exe.as_os_str(), &[]);
+    assert_eq!(code, Some(1), "{report}");
+    assert_eq!(report["status"], "tampered", "{report}");
 }
 
 #[test]
+#[cfg(unix)]
 fn a_mistyped_key_or_file_path_is_unverified_not_tampered() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
@@ -208,7 +206,21 @@ fn a_mistyped_key_or_file_path_is_unverified_not_tampered() {
 }
 
 #[test]
-fn downloaded_file_requires_an_explicit_trusted_key() {
-    assert!(verify_self(&["--file".into(), "artifact".into()]).is_err());
+fn a_signature_needs_a_file_and_a_file_alone_is_checked_with_the_built_in_key() {
     assert!(verify_self(&["--sig".into(), "artifact.minisig".into()]).is_err());
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("artifact");
+    let (code, report) = run(
+        env!("CARGO_BIN_EXE_vorda").as_ref(),
+        &["--file".as_ref(), missing.as_os_str()],
+    );
+    assert_eq!(code, Some(2), "{report}");
+    assert_eq!(report["status"], "unverified", "{report}");
+    let payload = fixture("payload");
+    let (code, report) = run(
+        env!("CARGO_BIN_EXE_vorda").as_ref(),
+        &["--file".as_ref(), payload.as_os_str()],
+    );
+    assert_eq!(code, Some(1), "{report}");
+    assert_eq!(report["status"], "tampered", "{report}");
 }

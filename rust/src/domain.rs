@@ -51,6 +51,8 @@ pub struct Package {
 #[derive(Clone, Debug, Default)]
 pub struct InventoryOptions {
     pub roots: Vec<PathBuf>,
+    /// Folders or files under a root left out of the scan on purpose (`--exclude`).
+    pub exclude: Vec<PathBuf>,
     pub os_packages: bool,
     pub tools: bool,
     pub browsers: bool,
@@ -59,6 +61,9 @@ pub struct InventoryOptions {
     pub cache_dir: Option<PathBuf>,
     pub scheduled: bool,
     pub oci: Option<PathBuf>,
+    /// A machine scan: the root is the home folder, walked without the caches, downloads and
+    /// tool folders in `HOME_SKIP`.
+    pub machine: bool,
 }
 
 #[derive(Clone, Debug, Default)]

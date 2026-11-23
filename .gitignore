@@ -1,9 +1,6 @@
 __pycache__/
 *.pyc
-*.egg-info/
 .venv/
 build/
 dist/
-.state/
-evidence/
 .mcp.json

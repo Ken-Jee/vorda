@@ -41,8 +41,9 @@ cargo test --locked --manifest-path rust/Cargo.toml --lib scanner::tests::actual
 These fixtures test archive inventory only, not advisory coverage or parity with
 Trivy or Grype. Use `vorda inventory --oci IMAGE.tar` or `vorda scan --oci IMAGE.tar --online`.
 `vorda scan` uses the local offline advisory database by default, so an image's OS
-packages report unknown (exit 2); pass `--online` (or set `VORDA_ADVISORIES=online`
-or `advisories` to `online` in `config.json`) to check OS package advisories.
+packages are listed in `not_assessed` and do not exit 2 on their own. Pass `--online`
+(or set `VORDA_ADVISORIES=online` or `advisories` to `online` in `config.json`) to
+check OS package advisories.
 
 ## Native implementation
 

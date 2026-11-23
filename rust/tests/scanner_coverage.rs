@@ -13,7 +13,9 @@ fn inventory(files: &[(&str, &str)]) -> (i32, Value) {
     let root = temp.path().join("project");
     fs::create_dir(&root).unwrap();
     for (name, text) in files {
-        fs::write(root.join(name), text).unwrap();
+        let path = root.join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
     }
     let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
         .arg("--state")
@@ -206,23 +208,23 @@ fn cvss4_vectors_and_advisory_labels_set_the_priority() {
 const GO_SUM: &str = "golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 h1:fixture=\ngolang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:fixture=\ngolang.org/x/crypto v0.17.0 h1:fixture=\ngolang.org/x/text v0.3.8 h1:fixture=\ngithub.com/new/name v1.2.0 h1:fixture=\n";
 
 #[test]
-fn go_mod_selects_module_versions_and_the_go_toolchain() {
+fn go_mod_selects_module_versions_and_no_standard_library() {
     let module = "module example.com/demo\n\ngo 1.21\n\ntoolchain go1.21.5\n\nrequire (\n\tgolang.org/x/crypto v0.17.0\n\tgithub.com/old/name v1.0.0 // indirect\n)\n\nrequire golang.org/x/text v0.3.8\n\nreplace github.com/old/name => github.com/new/name v1.2.0\n";
     let expected = [
         "Go:github.com/new/name@v1.2.0",
         "Go:golang.org/x/crypto@v0.17.0",
         "Go:golang.org/x/text@v0.3.8",
-        "Go:stdlib@1.21.5",
     ];
     // go.sum also holds the crypto version go.mod no longer selects.
     complete(&[("go.mod", module), ("go.sum", GO_SUM)], &expected);
-    // A module without go.sum is read from go.mod; `go 1.22` alone names the stdlib.
+    // A module without go.sum is read from go.mod. Neither `go` nor `toolchain` names the Go
+    // that builds it, so no `stdlib` package is listed (osv-scanner lists none either).
     complete(
         &[(
             "go.mod",
             "module m\n\ngo 1.22\n\nrequire golang.org/x/text v0.3.8\n",
         )],
-        &["Go:golang.org/x/text@v0.3.8", "Go:stdlib@1.22.0"],
+        &["Go:golang.org/x/text@v0.3.8"],
     );
 }
 
@@ -233,7 +235,7 @@ fn go_mod_that_cannot_list_the_whole_build_is_unknown() {
         "module m\n\ngo 1.22\n\nrequire golang.org/x/text v0.3.8\n\nreplace golang.org/x/text => ../text\n",
     )]);
     assert_eq!(code, 2, "{data}");
-    assert_eq!(packages(&data), ["Go:stdlib@1.22.0"], "{data}");
+    assert!(packages(&data).is_empty(), "{data}");
     assert!(
         data["errors"].to_string().contains("replace => ../text"),
         "{data}"
@@ -246,11 +248,7 @@ fn go_mod_that_cannot_list_the_whole_build_is_unknown() {
     // With go.sum beside it, go.sum lists the build.
     let (code, data) = inventory(&[("go.mod", old), ("go.sum", GO_SUM)]);
     assert_eq!(code, 0, "{data}");
-    assert_eq!(packages(&data).len(), 5, "{data}");
-    assert!(
-        packages(&data).contains(&"Go:stdlib@1.16.0".into()),
-        "{data}"
-    );
+    assert_eq!(packages(&data).len(), 4, "{data}");
 }
 
 #[test]
@@ -318,10 +316,7 @@ const GO_HEAD: &str = "module m\n\ngo 1.21\n\ntoolchain go1.21.5\n\n";
 #[test]
 fn go_mod_blocks_and_lines_are_read_or_refused_never_dropped() {
     let module = format!("{GO_HEAD}require(\n\tgolang.org/x/crypto v0.17.0\n)\n");
-    complete(
-        &[("go.mod", &module)],
-        &["Go:golang.org/x/crypto@v0.17.0", "Go:stdlib@1.21.5"],
-    );
+    complete(&[("go.mod", &module)], &["Go:golang.org/x/crypto@v0.17.0"]);
     for body in [
         "require golang.org/x/crypto\n",
         "require golang.org/x/crypto v0.17.0 extra\n",
@@ -336,10 +331,7 @@ fn go_mod_blocks_and_lines_are_read_or_refused_never_dropped() {
 #[test]
 fn a_version_specific_go_replace_wins_over_a_path_only_one() {
     let module = format!("{GO_HEAD}require golang.org/x/net v0.10.0\n\nreplace golang.org/x/net => golang.org/x/net v0.17.0\nreplace golang.org/x/net v0.10.0 => golang.org/x/net v0.1.0\n");
-    complete(
-        &[("go.mod", &module)],
-        &["Go:golang.org/x/net@v0.1.0", "Go:stdlib@1.21.5"],
-    );
+    complete(&[("go.mod", &module)], &["Go:golang.org/x/net@v0.1.0"]);
 }
 
 /// Inventory with the scan root set to `root`; state under `temp`.
@@ -459,8 +451,7 @@ fn replace_lines_do_not_count_as_go_mod_entries() {
     fs::write(root.join("go.mod"), module).unwrap();
     let (code, data) = scan_at(temp.path(), &root);
     assert_eq!(code, Some(0), "{}", data["errors"]);
-    // The requires and the standard library.
-    assert_eq!(data["packages"].as_array().unwrap().len(), 15_001);
+    assert_eq!(data["packages"].as_array().unwrap().len(), 15_000);
 }
 
 #[test]
@@ -472,33 +463,6 @@ fn a_pre_117_module_read_through_go_sum_keeps_its_go_mod_problems() {
         ],
         "replace => ../lib",
     );
-    unknown(
-        &[("go.mod", "module m\n\ngo 1.16rc1\n"), ("go.sum", GO_SUM)],
-        "stdlib",
-    );
-}
-
-#[test]
-fn a_stdlib_version_from_the_go_directive_is_labelled_a_minimum() {
-    let stdlib = |module: &str| {
-        let (code, data) = inventory(&[("go.mod", module)]);
-        assert_eq!(code, 0, "{data}");
-        data["packages"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|p| p["name"] == "stdlib")
-            .cloned()
-            .unwrap()
-    };
-    let minimum = stdlib("module m\n\ngo 1.22\n");
-    assert_eq!(
-        minimum["version_basis"], "go-directive-minimum",
-        "{minimum}"
-    );
-    assert!(minimum["note"].as_str().unwrap().contains("minimum"));
-    let exact = stdlib(GO_HEAD);
-    assert_eq!(exact["version_basis"], Value::Null, "{exact}");
 }
 
 #[test]
@@ -675,7 +639,7 @@ fn a_go_mod_may_start_with_a_byte_order_mark() {
             "go.mod",
             "\u{feff}module example.com/app\n\ngo 1.21\n\nrequire golang.org/x/text v0.3.0\n",
         )],
-        &["Go:golang.org/x/text@v0.3.0", "Go:stdlib@1.21.0"],
+        &["Go:golang.org/x/text@v0.3.0"],
     );
 }
 
@@ -796,6 +760,17 @@ fn other_dependency_files_are_named_in_any_letter_case() {
 }
 
 #[test]
+fn each_gem_version_is_listed_once_whatever_its_platform_builds() {
+    complete(
+        &[(
+            "Gemfile.lock",
+            "GEM\n  remote: https://rubygems.org/\n  specs:\n    nokogiri (1.13.10-arm64-darwin)\n      racc (~> 1.4)\n    nokogiri (1.13.10-x86_64-linux-musl)\n      racc (~> 1.4)\n    nokogiri (1.13.10)\n      racc (~> 1.4)\n    racc (1.6.2-java)\n\nPLATFORMS\n  arm64-darwin\n  java\n  ruby\n  x86_64-linux-musl\n\nDEPENDENCIES\n  nokogiri\n",
+        )],
+        &["RubyGems:nokogiri@1.13.10", "RubyGems:racc@1.6.2"],
+    );
+}
+
+#[test]
 fn a_lockfile_that_declares_no_dependencies_is_a_complete_scan() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("project");
@@ -838,13 +813,11 @@ fn a_lockfile_that_declares_no_dependencies_is_a_complete_scan() {
     );
     assert_eq!(output.status.code(), Some(0), "{stdout}{stderr}");
     assert!(stderr.contains("declare no dependencies"), "{stderr}");
-    // An empty folder still checked nothing.
+    // An empty folder has nothing to read: no packages, no errors, and no completed lockfile.
     let (code, data) = inventory(&[] as &[(&str, &str)]);
-    assert_eq!(code, 2, "{data}");
-    assert!(
-        data["errors"].to_string().contains("nothing was checked"),
-        "{data}"
-    );
+    assert_eq!(code, 0, "{data}");
+    assert_eq!(data["errors"], json!([]), "{data}");
+    assert_eq!(data["completed_paths"], json!([]), "{data}");
 }
 
 #[test]
@@ -968,7 +941,7 @@ fn each_manifest_kind_decides_whether_an_empty_lockfile_beside_it_is_complete() 
     ] {
         complete(&files, &[]);
     }
-    complete(&[("go.mod", go116), ("go.sum", "")], &["Go:stdlib@1.16.0"]);
+    complete(&[("go.mod", go116), ("go.sum", "")], &[]);
     let go116_req = format!("{go116}\nrequire example.com/a v1.0.0\n");
     complete(
         &[
@@ -978,7 +951,7 @@ fn each_manifest_kind_decides_whether_an_empty_lockfile_beside_it_is_complete() 
                 "example.com/a v1.0.0 h1:AAAA=\nexample.com/a v1.0.0/go.mod h1:BBBB=\n",
             ),
         ],
-        &["Go:example.com/a@v1.0.0", "Go:stdlib@1.16.0"],
+        &["Go:example.com/a@v1.0.0"],
     );
     let pep621_deps = format!("{pep621}dependencies = [\"requests\"]\n");
     let poetry_deps = format!("{poetry}requests = \"*\"\n");
@@ -1096,17 +1069,30 @@ fn a_linked_folder_is_unknown_unless_its_target_is_read_inside_the_root() {
         data["warnings"].to_string().contains("is read there"),
         "{data}"
     );
+    let stderr = || {
+        let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
+            .arg("--state")
+            .arg(temp.path().join("state"))
+            .args(["inventory", "--root"])
+            .arg(&root)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&output.stderr).into_owned()
+    };
+    // Several harmless skips are one terminal line; --json still lists each.
+    std::os::unix::fs::symlink(root.join("real"), root.join("more")).unwrap();
+    let text = stderr();
+    assert_eq!(text.matches("Warning:").count(), 1, "{text}");
+    assert!(
+        !text.contains("docs") && text.contains("Skipped 2 symlinked folders"),
+        "{text}"
+    );
+    fs::remove_file(root.join("more")).unwrap();
+    fs::remove_file(root.join("docs")).unwrap();
     // Warnings printed to the terminal show invisible characters as `?`.
     let hidden = root.join("l\u{202E}k");
     std::os::unix::fs::symlink(root.join("real"), &hidden).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
-        .arg("--state")
-        .arg(temp.path().join("state"))
-        .args(["inventory", "--root"])
-        .arg(&root)
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr();
     assert!(
         stderr.contains("Warning: ") && stderr.contains("l?k"),
         "{stderr}"
@@ -1158,5 +1144,100 @@ fn a_go_standard_library_fix_moves_the_toolchain() {
     assert!(
         commands.contains("go get golang.org/x/text@v0.3.8"),
         "{commands}"
+    );
+}
+
+const PYLOCK: &str = "lock-version = \"1.0\"\ncreated-by = \"uv\"\n\n[[packages]]\nname = \"django\"\nversion = \"2.2.0\"\nmarker = \"python_version >= '3.8'\"\nsdist = { url = \"https://files.pythonhosted.org/django-2.2.0.tar.gz\", hashes = { sha256 = \"00\" } }\n\n[[packages]]\nname = \"app\"\ndirectory = { path = \".\", editable = true }\n";
+
+#[test]
+fn a_pylock_lists_its_registry_packages_and_skips_the_project_folder() {
+    complete(&[("pylock.toml", PYLOCK)], &["PyPI:django@2.2.0"]);
+    complete(&[("pylock.dev.toml", PYLOCK)], &["PyPI:django@2.2.0"]);
+    // An empty pylock has no manifest beside it to show the project declares nothing.
+    unknown(
+        &[("pylock.toml", "lock-version = \"1.0\"\npackages = []\n")],
+        "lists no packages",
+    );
+}
+
+#[test]
+fn a_pylock_entry_from_vcs_an_archive_or_outside_the_project_is_not_checked() {
+    for (source, shown) in [
+        ("vcs = { type = \"git\", url = \"https://example.invalid/x.git\", commit-id = \"ab\" }", "vcs"),
+        ("archive = { url = \"https://example.invalid/x.tar.gz\", hashes = { sha256 = \"00\" } }", "archive"),
+        ("directory = { path = \"../x\" }", "file:../x"),
+    ] {
+        let text = format!("{PYLOCK}\n[[packages]]\nname = \"x\"\nversion = \"1.0\"\n{source}\n");
+        let data = unknown(&[("pylock.toml", &text)], "Uncheckable package entry");
+        assert_eq!(packages(&data), ["PyPI:django@2.2.0"], "{data}");
+        assert!(data["errors"].to_string().contains(shown), "{data}");
+    }
+}
+
+#[test]
+fn a_pylock_with_an_unknown_lock_version_is_not_read() {
+    unknown(
+        &[("pylock.toml", "lock-version = \"2.0\"\npackages = []\n")],
+        "unsupported lock-version",
+    );
+    unknown(
+        &[("pylock.toml", "packages = []\n")],
+        "missing lock-version",
+    );
+    // Another letter case is named as unread, not silently ignored.
+    unknown(&[("Pylock.toml", PYLOCK)], "Pylock.toml");
+}
+
+#[test]
+fn files_in_a_requirements_folder_are_read_like_requirements_txt() {
+    complete(
+        &[
+            ("requirements/base.txt", "django==2.2.0\n"),
+            (
+                "requirements/dev/test.txt",
+                "--index-url https://example.invalid/simple\npytest==7.0.0  # tests\n",
+            ),
+            ("requirements/README.txt", "Pinned files live here.\n"),
+        ],
+        &["PyPI:django@2.2.0", "PyPI:pytest@7.0.0"],
+    );
+    unknown(
+        &[("requirements/base.txt", "django==2.2.0\nhttpx>=0.27\n")],
+        "uv pip compile base.txt",
+    );
+}
+
+#[test]
+fn a_requirements_in_without_a_compiled_file_is_read_for_its_pins() {
+    complete(
+        &[("requirements.in", "django==2.2.0\n")],
+        &["PyPI:django@2.2.0"],
+    );
+    let data = unknown(
+        &[("requirements.in", "django==2.2.0\nhttpx\n")],
+        "uv pip compile requirements.in",
+    );
+    assert_eq!(packages(&data), ["PyPI:django@2.2.0"], "{data}");
+    // A compiled file beside the input is read instead: its .txt, or a pylock that lists
+    // every package the input names.
+    complete(
+        &[
+            ("requirements.in", "Django>=2.2  # web\n"),
+            ("pylock.toml", PYLOCK),
+        ],
+        &["PyPI:django@2.2.0"],
+    );
+    for input in ["httpx\n", "django\nhttpx\n", "-r base.in\ndjango\n"] {
+        unknown(
+            &[("requirements.in", input), ("pylock.toml", PYLOCK)],
+            "requirements.in",
+        );
+    }
+    complete(
+        &[
+            ("requirements/base.in", "httpx\n"),
+            ("requirements/base.txt", "httpx==0.27.0\n"),
+        ],
+        &["PyPI:httpx@0.27.0"],
     );
 }

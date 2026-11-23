@@ -1,0 +1,93 @@
+# The fixture folders hold deliberately vulnerable test data (see
+# rust/src/scanner/fixtures/README.md and benchmark/corpus/README.md). Keep Dependabot off them.
+# open-pull-requests-limit: 0 keeps version updates off, as before this file.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    exclude-paths:
+      - rust/src/scanner/fixtures/**
+      - rust/tests/fixtures/**
+      - tests/fixtures/**
+      - fixtures/**
+      - benchmark/corpus/**

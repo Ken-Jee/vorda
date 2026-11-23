@@ -102,6 +102,11 @@ pub(super) fn uncheckable(name: &str, source: &str) -> String {
     )
 }
 
+/// A requirements line naming a package with no exact version: not queried.
+pub(super) fn unpinned(name: &str, line: usize, file: &str) -> String {
+    format!("line {line}: {name} was not checked because it is not pinned to one version. Fix: pin it as {name}==VERSION, or generate a lockfile (example: `uv pip compile {file}`).")
+}
+
 fn malformed(name: &str, version: &str) -> String {
     format!(
         "Entry-level: Uncheckable package entry {}, version {}: name or version fails validation, so it was not checked; regenerate the lockfile or check this dependency by hand",
@@ -673,7 +678,7 @@ fn toml_structure(text: &[u8]) -> (usize, usize, usize) {
     (dots, most, deepest)
 }
 
-/// A Cargo, uv or Poetry lockfile read by a TOML parser, with its format marker checked.
+/// A Cargo, uv, Poetry or PEP 751 lockfile read by a TOML parser, with its format marker checked.
 /// Markers come from the root table (Poetry: `[metadata]`), never from a nested table.
 pub(super) fn toml_lock(name: &str, text: &str) -> Result<toml::Table> {
     toml_bounded(text)?;
@@ -694,7 +699,7 @@ pub(super) fn toml_lock(name: &str, text: &str) -> Result<toml::Table> {
         Some(toml::Value::Integer(n)) if name != "poetry.lock" => {
             require(Some(&n.to_string()), supported, marker)
         }
-        Some(toml::Value::String(s)) if name == "poetry.lock" => {
+        Some(toml::Value::String(s)) if name == "poetry.lock" || super::pylock(name) => {
             require(Some(s), supported, marker)
         }
         Some(other) => Err(version_error(
@@ -707,10 +712,13 @@ pub(super) fn toml_lock(name: &str, text: &str) -> Result<toml::Table> {
         // Cargo formats 1 and 2 have no root format marker.
         "Cargo.lock" if data.get("version").is_none() => {}
         "Cargo.lock" => require_toml(data.get("version"), &["1", "2", "3", "4"], "version")?,
+        _ if super::pylock(name) => {
+            require_toml(data.get("lock-version"), &["1.0"], "lock-version")?
+        }
         "uv.lock" => {
             require_toml(data.get("version"), &["1"], "version")?;
             if let Some(revision) = data.get("revision") {
-                require_toml(Some(revision), &["1", "2", "3"], "revision")?;
+                require_toml(Some(revision), &["1", "2", "3", "4", "5"], "revision")?;
             }
         }
         _ => require_toml(
@@ -722,9 +730,10 @@ pub(super) fn toml_lock(name: &str, text: &str) -> Result<toml::Table> {
     Ok(data)
 }
 
-/// A pnpm lockfile read by a YAML parser. `format` already checked the marker line; the
-/// parsed root must carry the same supported version.
-pub(super) fn pnpm_lock(text: &str) -> Result<serde_norway::Value> {
+/// A pnpm lockfile read by a YAML parser, one value per document: pnpm 11 and later write
+/// the package manager's own lock as a first document before the project's. `format`
+/// already checked the first marker line; every parsed root must carry a supported version.
+pub(super) fn pnpm_lock(text: &str) -> Result<Vec<serde_norway::Value>> {
     byte_cap(text)?;
     // A directive starts a line; libyaml also breaks lines at CR, NEL, LS and PS.
     let (mut directives, mut line_start) = (0, true);
@@ -749,26 +758,31 @@ pub(super) fn pnpm_lock(text: &str) -> Result<serde_norway::Value> {
     };
     yaml_events(text, &budget)?;
     budget.deadline.set(started + limit);
-    let parsed = serde::de::DeserializeSeed::deserialize(
-        Budgeted(&budget),
-        serde_norway::Deserializer::from_str(text),
-    );
-    let data = parsed.map_err(|e| {
-        if budget.left.get().is_none() {
-            return budget.exceeded();
-        }
-        error(format!(
-            "File-level: invalid YAML: {}; regenerate the lockfile with a supported tool version",
-            display(&e.to_string())
-        ))
-    })?;
-    let version = match data.get("lockfileVersion") {
-        Some(serde_norway::Value::String(s)) => Some(s.clone()),
-        Some(serde_norway::Value::Number(n)) => Some(n.to_string()),
-        _ => None,
-    };
-    require(version.as_deref(), &["6.0", "9.0"], "lockfileVersion")?;
-    Ok(data)
+    let mut documents = Vec::new();
+    // After a parse error the iterator yields the same error forever, so stop at the first.
+    for document in serde_norway::Deserializer::from_str(text) {
+        let data = serde::de::DeserializeSeed::deserialize(Budgeted(&budget), document)
+            .map_err(|e| {
+                if budget.left.get().is_none() {
+                    return budget.exceeded();
+                }
+                error(format!(
+                "File-level: invalid YAML: {}; regenerate the lockfile with a supported tool version",
+                display(&e.to_string())
+            ))
+            })?;
+        let version = match data.get("lockfileVersion") {
+            Some(serde_norway::Value::String(s)) => Some(s.clone()),
+            Some(serde_norway::Value::Number(n)) => Some(n.to_string()),
+            _ => None,
+        };
+        require(version.as_deref(), &["6.0", "9.0"], "lockfileVersion")?;
+        documents.push(data);
+    }
+    if documents.is_empty() {
+        require(None, &["6.0", "9.0"], "lockfileVersion")?;
+    }
+    Ok(documents)
 }
 
 fn require(found: Option<&str>, supported: &[&str], marker: &str) -> Result<()> {
@@ -872,7 +886,7 @@ pub(super) fn format(name: &str, text: &str) -> Result<()> {
                     .collect();
                 require(
                     yaml_marker(&block, r#"  (?:version|"version"|'version'):"#),
-                    &["8"],
+                    &["8", "10"],
                     "Yarn __metadata",
                 )
             } else if let Some(version) = scalar(text, r"(?m)^# yarn lockfile v([^\s]+)") {

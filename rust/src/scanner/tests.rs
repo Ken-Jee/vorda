@@ -339,3 +339,25 @@ fn debian_tracker_is_cut_to_the_selected_source_packages_before_it_is_cached() {
     scanner::feeds::select_debian_sources(&mut tracker, &packages);
     assert_eq!(tracker, json!({"openssl":{"CVE-1":{}},"zlib":{"CVE-2":{}}}));
 }
+
+#[test]
+fn only_a_binary_in_the_store_alias_folder_is_a_store_alias() {
+    use scanner::inventory::store_alias;
+    let local: PathBuf = ["C:", "Users", "u", "AppData", "Local"].iter().collect();
+    let under = |parts: &[&str]| parts.iter().fold(local.clone(), |p, s| p.join(s));
+    let l = Some(local.as_os_str());
+    let alias = under(&["microsoft", "WINDOWSAPPS", "python3.exe"]);
+    assert!(store_alias(&alias, l));
+    assert!(!store_alias(&alias, None));
+    assert!(!store_alias(
+        &under(&["Programs", "Python", "python3.exe"]),
+        l
+    ));
+    let nested = under(&[
+        "Microsoft",
+        "WindowsApps",
+        "PythonSoftwareFoundation",
+        "python3.exe",
+    ]);
+    assert!(!store_alias(&nested, l));
+}

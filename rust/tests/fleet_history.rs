@@ -1377,7 +1377,7 @@ fn a_source_restricted_reader_on_a_hub_restored_to_version_1_gets_no_history() {
     .unwrap();
     let cursor = first["next_cursor"].as_str().unwrap().to_string();
 
-    vorda::link::native::restore(&w.db).unwrap(); // the M2 rollback: the v2 tables are gone
+    vorda::link::native::restore(&w.db).unwrap(); // the native-migration rollback: the v2 tables are gone
     let view = changes(&w, &scope, &ChangeFilter::default(), &Since::Start);
     assert_eq!(
         (view["total"].as_i64(), view["window"]["available"].as_i64()),

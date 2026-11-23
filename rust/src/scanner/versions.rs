@@ -174,6 +174,39 @@ pub fn orderable(ecosystem: &str, version: &str) -> bool {
     scheme(ecosystem, "ECOSYSTEM").is_some_and(|s| parse(s, version).is_some())
 }
 
+/// The fixed versions an upgrade from `installed` can use, lowest first. Each advisory's
+/// fixes count only above `installed`, kept to its release line (same major; for SemVer below
+/// 1.0, same minor) when that advisory has a fix there. None when this ecosystem or any of the
+/// versions cannot be ordered.
+pub fn upgrades<'a>(
+    ecosystem: &str,
+    installed: &str,
+    advisories: &[Vec<&'a str>],
+) -> Option<Vec<&'a str>> {
+    let scheme = scheme(ecosystem, "ECOSYSTEM")?;
+    let line = |key: &Key| match key {
+        Key::Semver(0, minor, ..) => (0, 0, *minor),
+        Key::Semver(major, ..) => (0, *major, u64::MAX),
+        Key::Pep440(p) => (p.epoch, p.release.first().copied().unwrap_or(0), u64::MAX),
+    };
+    let own = parse(scheme, installed)?;
+    let mut out = std::collections::BTreeMap::new();
+    for fixed in advisories {
+        let mut above: Vec<(Key, &str)> = fixed
+            .iter()
+            .map(|v| parse(scheme, v).map(|key| (key, *v)))
+            .collect::<Option<Vec<_>>>()?
+            .into_iter()
+            .filter(|(key, _)| *key > own)
+            .collect();
+        if above.iter().any(|(key, _)| line(key) == line(&own)) {
+            above.retain(|(key, _)| line(key) == line(&own));
+        }
+        out.extend(above);
+    }
+    Some(out.into_values().collect())
+}
+
 /// What one advisory says about one installed version.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Verdict {
@@ -573,6 +606,39 @@ mod tests {
         assert_eq!(verdict("PyPI", "1.0", listed.clone()), Verdict::Affected);
         assert_eq!(verdict("PyPI", "1.1.0", listed.clone()), Verdict::Affected);
         assert_eq!(verdict("PyPI", "1.2", listed), Verdict::NotAffected);
+    }
+
+    #[test]
+    fn upgrades_stay_on_the_installed_release_line_lowest_first() {
+        let up = |eco, installed, fixes: &[&[&'static str]]| {
+            upgrades(
+                eco,
+                installed,
+                &fixes.iter().map(|f| f.to_vec()).collect::<Vec<_>>(),
+            )
+        };
+        assert_eq!(
+            up("npm", "2.3.0", &[&["1.20.9", "2.4.0"]]),
+            Some(vec!["2.4.0"])
+        );
+        assert_eq!(
+            up("npm", "1.19.17", &[&["2.1.3", "1.19.18"], &["2.1.6"]]),
+            Some(vec!["1.19.18", "2.1.6"])
+        );
+        assert_eq!(
+            up("npm", "5.3.1", &[&["6.2.1", "6.2.4", "6.2.3"]]),
+            Some(vec!["6.2.1", "6.2.3", "6.2.4"])
+        );
+        assert_eq!(
+            up("npm", "0.4.1", &[&["0.5.0", "0.4.3"]]),
+            Some(vec!["0.4.3"])
+        );
+        assert_eq!(
+            up("PyPI", "2.31", &[&["2.32.0", "3.0"]]),
+            Some(vec!["2.32.0"])
+        );
+        assert_eq!(up("npm", "1.0.0", &[&["next"]]), None);
+        assert_eq!(up("Maven", "1.0", &[&["2.0"]]), None);
     }
 
     #[test]

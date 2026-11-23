@@ -77,10 +77,11 @@ fn run_scan() -> Result<i32> {
     let result = Value::Object(crate::cli::check(&options, &mut store)?);
     let (status, findings) = write_outputs(&sarif_path, &output_path, &result)?;
     let fail = env::var("VORDA_FAIL").as_deref() == Ok("true");
+    // Findings or named gaps can come with errors; the log lists them either way.
+    for error in crate::scanner::array(&result["errors"]) {
+        eprintln!("vorda scan error: {error}");
+    }
     if status == "unknown" {
-        for error in crate::scanner::array(&result["errors"]) {
-            eprintln!("vorda scan error: {error}");
-        }
         if fail {
             println!("::error title=vorda::Scan incomplete, so this is not a pass; see the scan errors in this step's log.");
             return Ok(2);

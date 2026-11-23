@@ -469,8 +469,13 @@ fn readonly(p: &Path) -> Result<Connection> {
         OpenFlags::SQLITE_OPEN_READ_ONLY,
     )?)
 }
+/// Flushes `p`'s folder so a rename or create in it is durable. Windows cannot open a folder as a
+/// file (os error 5), so there it does nothing and relies on the file system's own metadata log.
 fn sync_parent(p: &Path) -> Result<()> {
+    #[cfg(unix)]
     File::open(p.parent().unwrap_or(Path::new(".")))?.sync_all()?;
+    #[cfg(not(unix))]
+    let _ = p;
     Ok(())
 }
 fn private_write(p: &Path, b: &[u8]) -> Result<()> {
@@ -490,6 +495,19 @@ fn side(p: &Path, s: &str) -> PathBuf {
     let mut n = p.as_os_str().to_os_string();
     n.push(s);
     n.into()
+}
+/// Opens `<db>.db-lock`, the file that admission, migrate and restore lock exclusively. The lock is
+/// not on the database itself: Windows locks are mandatory, so this process could not read it.
+pub(crate) fn db_lock_file(db: &Path) -> std::io::Result<File> {
+    fs::metadata(db)?;
+    let mut o = OpenOptions::new();
+    o.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        o.mode(0o600);
+    }
+    o.open(side(db, ".db-lock"))
 }
 fn old_manifest(db: &Connection) -> Result<Value> {
     let mut out = BTreeMap::new();
@@ -541,7 +559,7 @@ pub fn migrate_with_limit(path: &Path, max_bytes: u64) -> Result<()> {
     if fs::metadata(path)?.len() > max_bytes {
         return Err(err(503, "migration_storage_failure"));
     }
-    let migration_lock = OpenOptions::new().read(true).write(true).open(path)?;
+    let migration_lock = db_lock_file(path)?;
     fs2::FileExt::try_lock_exclusive(&migration_lock)
         .map_err(|_| err(503, "migration_storage_failure"))?;
     let header = fs::read(path)?;
@@ -792,7 +810,7 @@ pub fn migrate_change_log_with_limit(path: &Path, max_bytes: u64) -> Result<()> 
     if fs::metadata(path)?.len() > max_bytes {
         return Err(err(503, "migration_storage_failure"));
     }
-    let migration_lock = OpenOptions::new().read(true).write(true).open(path)?;
+    let migration_lock = db_lock_file(path)?;
     fs2::FileExt::try_lock_exclusive(&migration_lock)
         .map_err(|_| err(503, "migration_storage_failure"))?;
     let backup = side(path, ".v2-backup");
@@ -1029,7 +1047,7 @@ impl Admission {
         authenticated: Option<(&str, Instant)>,
     ) -> Result<Vec<u8>> {
         let _guard = self.active.try_lock().map_err(|_| err(503, "busy"))?;
-        let lock_file = OpenOptions::new().read(true).write(true).open(&self.path)?;
+        let lock_file = db_lock_file(&self.path)?;
         fs2::FileExt::try_lock_exclusive(&lock_file).map_err(|_| err(503, "busy"))?;
         fault("admission-held");
         let start = authenticated.map_or_else(Instant::now, |(_, start)| start);

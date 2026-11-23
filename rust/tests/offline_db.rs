@@ -158,7 +158,8 @@ fn a_missing_kev_list_asks_for_db_update() {
     assert_eq!(update(&w).0, 0);
     fs::remove_file(w.db.join("kev.json")).unwrap();
     let (code, result) = scan_json(&w, &["--offline-db"], &[]);
-    assert_eq!(code, 2);
+    // The npm finding still wins; the missing KEV list is named beside it.
+    assert_eq!(code, 3, "{result}");
     assert!(errors(&result).contains(missing), "{result}");
 }
 
@@ -181,7 +182,8 @@ fn linked_database_parent_is_ready_but_linked_kev_file_is_refused() {
     fs::rename(&kev, real.join("real-kev.json")).unwrap();
     std::os::unix::fs::symlink(real.join("real-kev.json"), kev).unwrap();
     let (code, result) = scan_json(&w, &[], &[]);
-    assert_eq!(code, 2);
+    assert_eq!(code, 3, "{result}");
+    assert!(!errors(&result).is_empty(), "{result}");
     assert!(!errors(&result).contains("not in the local advisory database"));
     assert!(!errors(&result).contains("run `vorda db update`"));
 }
@@ -312,7 +314,7 @@ fn offline_db_scan_finds_advisories_with_every_network_route_dead() {
     let (code, out, _) = vorda(&w, &["scan", "--root", &root, "--offline-db"], &[]);
     assert_eq!(code, 3);
     assert!(
-        out.contains("Advisories: local offline database (no network); EPSS not checked."),
+        out.contains("Advisories: local offline database (no network); not ranked by EPSS exploit-likelihood score (online scans fetch it)."),
         "{out}"
     );
     let (code, out, _) = vorda(&w, &["db", "status"], &[]);
@@ -341,7 +343,12 @@ fn offline_db_reports_unknown_with_a_reason_whenever_it_could_be_wrong() {
     publish(&w, "npm", &zip_of(&entries));
     assert_eq!(update(&w).0, 0);
     let (code, result) = scan_json(&w, &["--offline-db"], &[]);
-    assert_eq!(code, 2);
+    // `example` has a finding, so the scan is vulnerable; `odd` is still named as unchecked.
+    assert_eq!(
+        (code, &result["status"]),
+        (3, &json!("vulnerable")),
+        "{result}"
+    );
     let text = errors(&result);
     // A range the comparator cannot order makes that package unknown, not clean.
     assert!(
@@ -911,7 +918,13 @@ fn an_event_that_cannot_be_ordered_leaves_only_its_own_release_unknown() {
         (redis, "v9.5.0", go_why),
     ] {
         let (got, result) = pin(name, version);
-        assert_eq!(got, 2, "{name} {version}: {result}");
+        // A finding from another record still wins; the unordered event stays named.
+        let expected = if result["findings"].as_array().unwrap().is_empty() {
+            2
+        } else {
+            3
+        };
+        assert_eq!(got, expected, "{name} {version}: {result}");
         assert!(errors(&result).contains(why), "{}", errors(&result));
     }
 }
@@ -1144,7 +1157,8 @@ fn an_unknown_package_is_never_counted_as_covered() {
     publish(&w, "npm", &zip_of(&entries));
     assert_eq!(update(&w).0, 0);
     let (code, result) = scan_json(&w, &["--offline-db"], &[]);
-    assert_eq!(code, 2, "{}", errors(&result));
+    assert_eq!(code, 3, "{}", errors(&result));
+    assert!(!errors(&result).is_empty(), "{result}");
     // Only `example` was fully answered; `odd` is unknown and must not retire saved findings.
     assert_eq!(
         result["covered"],
@@ -1388,4 +1402,277 @@ fn db_update_takes_an_ecosystem_name_in_any_case() {
     );
     assert_eq!(code, 0, "{out}\n{err}");
     assert!(out.contains("npm: updated"), "{out}");
+}
+
+#[test]
+fn findings_win_over_files_not_checked_and_an_empty_folder_has_nothing_to_scan() {
+    let w = world(&lock(&[("example", "1.2.3")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let pubspec = w.root.join("pubspec.lock");
+    fs::write(&pubspec, "packages: {}\n").unwrap();
+    let not_covered =
+        |result: &Value| {
+            result["errors"].as_array().unwrap().iter().any(|e| {
+                e["not_covered"] == true && e["error"].to_string().contains("pubspec.lock")
+            })
+        };
+    let (code, result) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(
+        (code, &result["status"]),
+        (3, &json!("vulnerable")),
+        "{result}"
+    );
+    assert!(not_covered(&result), "{result}");
+
+    // With no findings, the same file not checked could hide one: unknown until excluded.
+    fs::write(
+        w.root.join("package-lock.json"),
+        lock(&[("other", "2.0.0")]),
+    )
+    .unwrap();
+    let (code, result) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(
+        (code, &result["status"]),
+        (2, &json!("unknown")),
+        "{result}"
+    );
+    assert!(not_covered(&result), "{result}");
+    let pubspec = pubspec.to_string_lossy().into_owned();
+    let (code, result) = scan_json(&w, &["--offline-db", "--exclude", &pubspec], &[]);
+    assert_eq!(
+        (code, &result["status"]),
+        (0, &json!("no-known-findings")),
+        "{result}"
+    );
+    assert_eq!(result["excluded"], json!([pubspec]));
+
+    let empty = w.root.join("scripts-only");
+    fs::create_dir(&empty).unwrap();
+    fs::write(empty.join("run.sh"), "echo hi\n").unwrap();
+    let empty = empty.to_string_lossy().into_owned();
+    let (code, out, err) = vorda(
+        &w,
+        &["scan", "--offline-db", "--root", &empty, "--json"],
+        &[],
+    );
+    let result: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    assert_eq!(
+        (code, &result["status"]),
+        (0, &json!("no-known-findings")),
+        "{result}"
+    );
+    assert_eq!(
+        (result["packages"].clone(), result["errors"].clone()),
+        (json!([]), json!([]))
+    );
+
+    // A source asked for by name that finds nothing proves nothing: still unknown.
+    let apps = w.root.join("no-apps");
+    fs::create_dir(&apps).unwrap();
+    let apps = apps.to_string_lossy().into_owned();
+    let (code, out, err) = vorda(
+        &w,
+        &[
+            "scan",
+            "--offline-db",
+            "--root",
+            &empty,
+            "--installed-root",
+            &apps,
+            "--json",
+        ],
+        &[],
+    );
+    let result: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    assert_eq!(
+        (code, &result["status"]),
+        (2, &json!("unknown")),
+        "{result}"
+    );
+}
+
+#[test]
+fn an_advisory_title_is_shown_but_a_new_title_never_reports_the_finding_as_changed() {
+    let w = world(&lock(&[("example", "1.2.3")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let (code, first) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(code, 3, "{first}");
+
+    let mut titled = good_npm();
+    let mut record: Value = serde_json::from_slice(&titled[0].1).unwrap();
+    record["summary"] = json!("example is unmaintained");
+    record["modified"] = json!("2099-02-01T00:00:00Z");
+    titled[0].1 = serde_json::to_vec(&record).unwrap();
+    publish(&w, "npm", &zip_of(&titled));
+    assert_eq!(update(&w).0, 0);
+    let (code, second) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(code, 3, "{second}");
+    assert!(
+        second["findings"]
+            .to_string()
+            .contains("example is unmaintained"),
+        "{second}"
+    );
+    let (_, out, err) = vorda(
+        &w,
+        &["mail", "list", "--reader", "t", "--limit", "100"],
+        &[],
+    );
+    let mail: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    assert!(
+        mail.as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["kind"] != "changed"),
+        "{mail}"
+    );
+}
+
+#[test]
+fn an_excluded_scan_never_closes_full_scan_findings_and_a_missed_exclude_is_only_warned() {
+    let w = world(&lock(&[("example", "1.2.3")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let sub = w.root.join("sub");
+    fs::create_dir(&sub).unwrap();
+    fs::write(sub.join("package-lock.json"), lock(&[("example", "1.2.3")])).unwrap();
+    let (code, full) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(code, 3, "{full}");
+
+    // The root lockfile is fixed; the excluded one is not read, so its finding stays open.
+    fs::write(
+        w.root.join("package-lock.json"),
+        lock(&[("example", "1.2.4")]),
+    )
+    .unwrap();
+    let sub = sub.to_string_lossy().into_owned();
+    // Another spelling of the same path still counts as reached and is listed once.
+    let spelled = format!("{sub}/");
+    let (code, result) = scan_json(&w, &["--offline-db", "--exclude", &spelled], &[]);
+    assert_eq!(code, 0, "{result}");
+    assert_eq!(result["excluded"], json!([sub]));
+    assert_ne!(result["scan_scope"], full["scan_scope"]);
+    let (_, out, err) = vorda(
+        &w,
+        &["mail", "list", "--reader", "t", "--limit", "100"],
+        &[],
+    );
+    let mail: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    let excluded: Vec<&Value> = mail
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| {
+            m["package"]["path"]
+                .as_str()
+                .is_some_and(|p| p.starts_with(&sub))
+        })
+        .collect();
+    assert!(!excluded.is_empty(), "{mail}");
+    assert!(
+        excluded
+            .iter()
+            .all(|m| m["kind"] != "closed" && m["state"] == "open"),
+        "{mail}"
+    );
+
+    // An --exclude that matches nothing leaves nothing out: warned, not listed, full scope.
+    fs::write(
+        w.root.join("package-lock.json"),
+        lock(&[("example", "1.2.3")]),
+    )
+    .unwrap();
+    let missing = w.root.join("no-such-dir").to_string_lossy().into_owned();
+    let root = w.root.to_string_lossy().into_owned();
+    let (code, out, err) = vorda(
+        &w,
+        &[
+            "scan",
+            "--offline-db",
+            "--root",
+            &root,
+            "--exclude",
+            &missing,
+            "--json",
+        ],
+        &[],
+    );
+    let result: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    assert_eq!(code, 3, "{result}");
+    assert_eq!(result["excluded"], Value::Null, "{result}");
+    assert_eq!(result["scan_scope"], full["scan_scope"]);
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("Warning:") && l.contains(&missing)),
+        "{err}"
+    );
+}
+
+#[test]
+fn what_offline_mode_cannot_assess_is_listed_and_never_makes_the_scan_unknown() {
+    let w = world(&lock(&[("other", "2.0.0")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let observed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+    let package = |name: &str, version: &str, ecosystem: &str| json!({"name":name,"version":version,"ecosystem":ecosystem,"path":"inventory","scope":"installed"});
+    let file = w.root.join("inventory.json");
+    fs::write(
+        &file,
+        json!({"status":"complete","observed":observed,"packages":[
+            package("other", "2.0.0", "npm"),
+            package("rack", "2.0.0", "RubyGems"),
+            package("bash", "5.2.037-1", "Arch Linux"),
+            package("tool", "1.0", "Homebrew"),
+            package("app", "unknown", "npm"),
+        ]})
+        .to_string(),
+    )
+    .unwrap();
+    let file = file.to_string_lossy().into_owned();
+    let (code, result) = scan_json(&w, &["--offline-db", "--inventory-file", &file], &[]);
+    assert_eq!(
+        (code, &result["status"], &result["errors"]),
+        (0, &json!("no-known-findings"), &json!([])),
+        "{result}"
+    );
+    let listed: Vec<(&str, Value)> = result["not_assessed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| (n["source"].as_str().unwrap(), n["packages"].clone()))
+        .collect();
+    assert_eq!(
+        listed,
+        vec![
+            ("arch", json!([])),
+            ("coverage:Homebrew", json!(["tool 1.0"])),
+            ("coverage:version", json!(["app"])),
+            ("offline-db:RubyGems", json!(["rack 2.0.0"])),
+        ],
+        "{result}"
+    );
+    // Nothing unassessed counts as checked, so saved findings are never retired by it.
+    assert_eq!(result["coverage_evidence"]["status"], "partial");
+
+    let root = w.root.to_string_lossy().into_owned();
+    let (code, out, _) = vorda(
+        &w,
+        &[
+            "scan",
+            "--offline-db",
+            "--root",
+            &root,
+            "--inventory-file",
+            &file,
+        ],
+        &[],
+    );
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("(4):\n"), "{out}");
+    assert!(out.contains("\n  coverage:Homebrew: "), "{out}");
 }

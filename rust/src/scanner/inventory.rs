@@ -37,6 +37,96 @@ pub const LOCKS: &[&str] = &[
 /// Folders never read: version-control internals, and installed copies of what a lockfile
 /// lists. Every other folder is walked unless `generated` names it.
 pub const SKIP: &[&str] = &[".git", "node_modules"];
+/// Folders under the home folder a machine scan never walks: package caches, toolchains,
+/// downloads, app data and the trash. The lockfiles in them are not the person's projects.
+pub const HOME_SKIP: &[&str] = &[
+    ".cache",
+    ".cargo",
+    ".rustup",
+    ".npm",
+    ".pnpm-store",
+    ".yarn",
+    ".bun",
+    ".deno",
+    ".nvm",
+    ".pyenv",
+    ".rbenv",
+    ".gem",
+    ".bundle",
+    ".m2",
+    ".gradle",
+    ".nuget",
+    ".dotnet",
+    ".conda",
+    ".local",
+    ".config",
+    ".var",
+    ".vscode",
+    ".vscode-server",
+    ".cursor",
+    ".mozilla",
+    ".docker",
+    ".steam",
+    ".wine",
+    ".Trash",
+    "go/pkg",
+    "snap",
+    "Downloads",
+    "Library",
+    "AppData",
+    "scoop",
+];
+/// Entries a machine scan may visit under the home folder; a project scan stops at 100,000.
+const MACHINE_WORK: usize = 1_000_000;
+/// Evidence reason for a `HOME_SKIP` folder.
+const COPY_HOME_SKIPPED: &str =
+    "home cache, toolchain, download, app-data, or trash folder skipped in a machine scan";
+/// Warning and evidence reason for a symlinked folder under the home folder.
+const COPY_HOME_LINK: &str =
+    "symlinked folder not followed in a machine scan (run vorda scan PATH to check it)";
+/// Ends the warning for a symlinked folder skipped because its target is read in the scan.
+pub const READ_THERE: &str = "is inside the scanned folder and is read there";
+/// Folders of test and example data. Their packages are likely dev-only, and a file in one that
+/// Vorda cannot check is listed as not covered instead of making the whole scan unknown.
+const TEST_DATA: &[&str] = &[
+    "test",
+    "tests",
+    "testdata",
+    "__tests__",
+    "__fixtures__",
+    "fixtures",
+    "example",
+    "examples",
+];
+/// Ends the warning for a test or example file Vorda could not check.
+pub const NOT_COVERED_TEST_DATA: &str = "this file is in a test or example folder, so it is listed as not covered instead of making the scan unknown";
+
+/// The file sits in a test or example folder below the scan root (never the root itself).
+fn test_data(path: &Path, root: &Path) -> bool {
+    path.strip_prefix(root)
+        .ok()
+        .and_then(Path::parent)
+        .is_some_and(|dir| {
+            dir.components().any(|c| {
+                c.as_os_str()
+                    .to_str()
+                    .is_some_and(|n| TEST_DATA.iter().any(|t| t.eq_ignore_ascii_case(n)))
+            })
+        })
+}
+
+fn skip_test_data(
+    path: &Path,
+    reason: &str,
+    warnings: &mut Vec<String>,
+    evidence: &mut Vec<Value>,
+) {
+    warnings.push(format!(
+        "{}: {reason}; {NOT_COVERED_TEST_DATA}",
+        path.display()
+    ));
+    evidence.push(json!({"kind":"not-covered-test-data","path":path,"reason":reason}));
+}
 
 /// What a folder is when a tool made it: an installed Python environment, or a build output or
 /// cache that marks itself with CACHEDIR.TAG (cargo's `target` does). Such a folder is not
@@ -108,7 +198,105 @@ fn lockfile_within(dir: &Path) -> Option<String> {
     None
 }
 pub fn supported(name: &str) -> bool {
-    LOCKS.contains(&name) || name.starts_with("requirements") && name.ends_with(".txt")
+    LOCKS.contains(&name)
+        || pylock(name)
+        || name.starts_with("requirements") && name.ends_with(".txt")
+}
+/// A PEP 751 lockfile: `pylock.toml` or `pylock.<name>.toml`, with no dot in the name.
+fn pylock(name: &str) -> bool {
+    name == "pylock.toml"
+        || name
+            .strip_prefix("pylock.")
+            .and_then(|rest| rest.strip_suffix(".toml"))
+            .is_some_and(|middle| !middle.is_empty() && !middle.contains('.'))
+}
+/// A compiled file beside a requirements input lists its exact versions, so that file is read
+/// instead of the input: a `<stem>.txt` Vorda reads, or a pylock in the same folder that lists
+/// every package the input names.
+fn compiled(input: &Path, root: &Path) -> bool {
+    let present = |path: &Path| path.symlink_metadata().is_ok_and(|m| !m.is_dir());
+    let txt = input.with_extension("txt");
+    if present(&txt)
+        && (txt
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(supported)
+            || requirements_input(&txt, root))
+    {
+        return true;
+    }
+    let normal = |name: &str| {
+        rx(r"[-_.]+")
+            .replace_all(&name.to_ascii_lowercase(), "-")
+            .into_owned()
+    };
+    // Only plain requirement lines can be matched to a pylock: an option, include or direct
+    // reference keeps the input read.
+    let Some(wanted) = read_text(input, root).and_then(|text| {
+        let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+        let name = rx(r"^([A-Za-z0-9][A-Za-z0-9._-]*)");
+        text.lines()
+            .map(|line| line.split(" #").next().unwrap_or(line).trim())
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .map(|line| {
+                name.captures(line)
+                    .filter(|_| !line.contains(['@', '/', '\\']))
+                    .map(|c| normal(&c[1]))
+            })
+            .collect::<Option<Vec<_>>>()
+    }) else {
+        return false;
+    };
+    let Some(entries) = input.parent().and_then(|dir| fs::read_dir(dir).ok()) else {
+        return false;
+    };
+    entries.filter_map(|e| e.ok()).any(|e| {
+        let Some(name) = e
+            .file_name()
+            .to_str()
+            .filter(|n| pylock(n))
+            .map(str::to_owned)
+        else {
+            return false;
+        };
+        let listed: Option<std::collections::HashSet<String>> = present(&e.path())
+            .then(|| read_text(&e.path(), root))
+            .flatten()
+            .and_then(|text| lock_validation::toml_lock(&name, &text).ok())
+            .and_then(|data| {
+                data.get("packages")?.as_array().map(|packages| {
+                    packages
+                        .iter()
+                        .filter_map(|p| p.get("name")?.as_str())
+                        .map(normal)
+                        .collect()
+                })
+            });
+        listed.is_some_and(|listed| wanted.iter().all(|w| listed.contains(w)))
+    })
+}
+/// A requirements file whose name alone does not mark it as read: `requirements*.in` with no
+/// compiled file beside it, or a `.txt` or `.in` of requirement lines under a `requirements`
+/// folder. Its exact pins are read like requirements.txt.
+fn requirements_input(path: &Path, root: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let input = name.ends_with(".in");
+    if name.starts_with("constraints") || !input && !name.ends_with(".txt") {
+        return false;
+    }
+    if input && compiled(path, root) {
+        return false;
+    }
+    let parent = path.parent().unwrap_or(root);
+    let in_directory = parent
+        .ancestors()
+        .take_while(|p| p.starts_with(root))
+        .any(|p| p.file_name().is_some_and(|n| n == "requirements"));
+    // An unreadable file is taken in, so reading it reports the error.
+    input && name.starts_with("requirements")
+        || in_directory && requirement_content(path, root).unwrap_or(true)
 }
 fn python_dependencies(value: &toml::Value) -> bool {
     if value
@@ -230,7 +418,7 @@ fn unsupported(path: &Path, root: &Path) -> Result<Option<String>> {
                 })
             })
     };
-    let python_locks = ["poetry.lock", "uv.lock", "Pipfile.lock"];
+    let python_locks = ["poetry.lock", "uv.lock", "Pipfile.lock", "pylock.toml"];
     let missing = match name {
         "package.json"
             if !under_lock(&[
@@ -345,6 +533,7 @@ fn unsupported(path: &Path, root: &Path) -> Result<Option<String>> {
         "deno.lock",
         "deno.json",
         "deno.jsonc",
+        // Read when spelled exactly; another letter case is named, not silently ignored.
         "pylock.toml",
         "Package.resolved",
         "Podfile",
@@ -394,14 +583,7 @@ fn unsupported(path: &Path, root: &Path) -> Result<Option<String>> {
             .take_while(|p| p.starts_with(root))
             .any(|p| p.file_name().is_some_and(|n| n == "requirements"));
         if named || in_directory && requirement_content(path, root)? {
-            let compiled = path.with_extension("txt");
-            if name.ends_with(".in")
-                && compiled
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .is_some_and(supported)
-                && present(&compiled)
-            {
+            if name.ends_with(".in") && compiled(path, root) {
                 return Ok(None);
             }
             return Ok(Some(format!("Vorda does not read this requirements input ({name}); it is not supported. Scan exact pins in requirements.txt.")));
@@ -743,12 +925,8 @@ const GO_BEFORE_117: &str = "Coverage: this go.mod declares a Go version before 
 struct GoMod {
     /// (module, version, replacement source): a local replacement has no version.
     selected: Vec<(String, String, Option<String>)>,
-    /// The standard library version: the `toolchain` directive, else the `go` directive.
-    stdlib: Option<String>,
     /// Go 1.17+ lists every module the build needs, indirect ones included.
     complete_graph: bool,
-    /// Only a `go` directive named the stdlib version: a minimum, not the toolchain.
-    stdlib_minimum: bool,
     /// Lines Vorda cannot read as go.mod syntax: their modules may be missing.
     unreadable: Vec<String>,
     /// More entries than the per-input cap; reading stopped there.
@@ -758,7 +936,6 @@ struct GoMod {
 fn go_mod(text: &str) -> GoMod {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut go = None;
-    let mut toolchain = None;
     let mut require = Vec::new();
     let mut replace = Vec::new();
     let mut unreadable = Vec::new();
@@ -802,9 +979,8 @@ fn go_mod(text: &str) -> GoMod {
             continue;
         }
         match (verb.as_str(), fields) {
-            ("module" | "tool", [_]) => {}
+            ("module" | "tool" | "toolchain", [_]) => {}
             ("go", [v]) => go = Some(v.clone()),
-            ("toolchain", [v]) => toolchain = v.strip_prefix("go").map(str::to_owned),
             ("require", [n, v]) => require.push((n.clone(), v.clone())),
             ("exclude", [_, _]) => {}
             ("retract" | "godebug" | "ignore", [_, ..]) => {}
@@ -870,19 +1046,9 @@ fn go_mod(text: &str) -> GoMod {
         .as_deref()
         .and_then(minor)
         .is_some_and(|(major, minor)| major > 1 || minor >= 17);
-    let stdlib_minimum = toolchain.is_none() && go.is_some();
-    let stdlib = toolchain.or(go).map(|v| {
-        if v.split('.').count() == 2 && v.bytes().all(|c| c.is_ascii_digit() || c == b'.') {
-            format!("{v}.0")
-        } else {
-            v
-        }
-    });
     GoMod {
         selected,
-        stdlib,
         complete_graph,
-        stdlib_minimum,
         unreadable,
         over_cap,
     }
@@ -943,15 +1109,20 @@ pub(super) fn lockfile_report(
     if name == "bun.lockb" {
         return Err(error("File-level: unsupported binary lockfile; export bun.lock with `bun install --save-text-lockfile` and scan again"));
     }
-    if !supported(name) {
-        let root = root
-            .as_deref()
-            .unwrap_or_else(|| path.parent().unwrap_or(Path::new("/")));
+    let parent = path.parent().unwrap_or(Path::new("/"));
+    if !supported(name) && !requirements_input(&path, root.as_deref().unwrap_or(parent)) {
+        let root = root.as_deref().unwrap_or(parent);
         LISTINGS.with(|cache| cache.borrow_mut().clear());
         return Err(error(unsupported(&path, root)?.unwrap_or_else(|| {
             format!("Vorda does not read {name} directly; scan its supported lockfile or containing folder")
         })));
     }
+    // Requirements inputs found by folder or by `.in` are read as requirements.txt.
+    let name = if supported(name) {
+        name
+    } else {
+        "requirements.txt"
+    };
     let text = String::from_utf8(input::read_regular(
         &path,
         root.as_deref(),
@@ -960,17 +1131,7 @@ pub(super) fn lockfile_report(
     )?)
     .map_err(error)
     .map_err(lock_validation::file)?;
-    let dev = root
-        .as_ref()
-        .and_then(|root| path.strip_prefix(root).ok())
-        .and_then(Path::parent)
-        .is_some_and(|relative| {
-            relative.components().any(|p| {
-                ["fixtures", "test", "tests"]
-                    .iter()
-                    .any(|s| p.as_os_str() == *s)
-            })
-        });
+    let dev = root.as_deref().is_some_and(|root| test_data(&path, root));
     let sum = path.with_file_name("go.sum");
     // Before Go 1.17 go.mod can omit indirect modules; go.sum then lists the build.
     let (mut packages, mut issues) = if name == "go.mod"
@@ -985,15 +1146,14 @@ pub(super) fn lockfile_report(
         )?)
         .map_err(error)
         .map_err(lock_validation::file)?;
-        let (mut packages, mut issues) =
+        let (packages, mut issues) =
             parse_lockfile_report("go.sum", &sum_text, &sum.to_string_lossy())?;
         if packages.is_empty() && issues.is_empty() && !go_mod(&text).selected.is_empty() {
             return Err(error(
                 "go.mod requires modules but go.sum lists none; coverage is unknown",
             ));
         }
-        let (module, module_issues) = parse_lockfile_report(name, &text, &path.to_string_lossy())?;
-        packages.extend(module.into_iter().filter(|p| p.name == "stdlib"));
+        let (_, module_issues) = parse_lockfile_report(name, &text, &path.to_string_lossy())?;
         issues.extend(module_issues.into_iter().filter(|i| i != GO_BEFORE_117));
         (packages, issues)
     } else {
@@ -1048,7 +1208,6 @@ fn parse_lockfile_entries(
     // Workspace members are skipped, not listed, but still count toward the per-input cap.
     let members = std::cell::Cell::new(0);
     let empty;
-    let mut stdlib_minimum = false;
     let mut add = |n: &str, v: &str, e: &str, dev: bool| -> Result<()> {
         if out.len() + issues.len() + unresolved_paths.seen.get() + members.get()
             >= MAX_INPUT_PACKAGES
@@ -1292,6 +1451,45 @@ fn parse_lockfile_entries(
                 )?;
             }
         }
+        name if pylock(name) => {
+            let data = lock_validation::toml_lock(name, text)?;
+            let packages = match data.get("packages") {
+                Some(toml::Value::Array(packages)) => packages.as_slice(),
+                _ => return Err(error("invalid package collection")),
+            };
+            empty = packages.is_empty();
+            for block in packages {
+                let field = |key: &str| block.get(key).and_then(toml::Value::as_str);
+                let package = field("name").unwrap_or("");
+                let directory = block
+                    .get("directory")
+                    .and_then(|d| d.get("path"))
+                    .and_then(toml::Value::as_str);
+                if let Some(local) = directory {
+                    // A folder inside the project with no version is first-party code, skipped;
+                    // a versioned copy is queried by name and version.
+                    if !lock_validation::inside_project(local) {
+                        unresolved_paths.push(lock_validation::uncheckable(
+                            package,
+                            &format!("file:{local}"),
+                        ));
+                        continue;
+                    }
+                    if field("version").is_none() {
+                        members.set(members.get() + 1);
+                        continue;
+                    }
+                } else if let Some(source) = ["vcs", "archive", "directory"]
+                    .into_iter()
+                    .find(|key| block.get(key).is_some())
+                {
+                    // A VCS checkout or an archive is not a registry release.
+                    unresolved_paths.push(lock_validation::uncheckable(package, source));
+                    continue;
+                }
+                add(package, field("version").unwrap_or(""), "PyPI", false)?;
+            }
+        }
         "go.sum" => {
             empty = text.trim().is_empty();
             for (number, line) in text.lines().enumerate() {
@@ -1316,7 +1514,7 @@ fn parse_lockfile_entries(
             if module.over_cap {
                 return Err(over_input_cap());
             }
-            empty = module.selected.is_empty() && module.stdlib.is_none();
+            empty = module.selected.is_empty();
             for (n, v, local) in &module.selected {
                 match local {
                     Some(target) => unresolved_paths.push(lock_validation::uncheckable(
@@ -1325,10 +1523,6 @@ fn parse_lockfile_entries(
                     )),
                     None => add(n, v, "Go", false)?,
                 }
-            }
-            if let Some(v) = &module.stdlib {
-                add("stdlib", v, "Go", false)?;
-                stdlib_minimum = module.stdlib_minimum;
             }
             for issue in module.unreadable {
                 unresolved_paths.push(issue);
@@ -1341,6 +1535,7 @@ fn parse_lockfile_entries(
             empty = lock_validation::empty_text(name, text);
             let spec = rx(r"^    ([^\s].*|) \(([^)]*)\)$");
             let mut specs = false;
+            let mut seen = std::collections::HashSet::new();
             for line in text.lines() {
                 if !line.starts_with(' ') && !line.is_empty() {
                     specs = false;
@@ -1351,7 +1546,12 @@ fn parse_lockfile_entries(
                 }
                 if specs && !line.starts_with("      ") && !line.trim().is_empty() {
                     if let Some(c) = spec.captures(line) {
-                        add(&c[1], &c[2], "RubyGems", false)?;
+                        // RubyGems versions never hold `-`; Bundler appends `-<platform>` to
+                        // each platform build, and every build shares one version.
+                        let version = c[2].split('-').next().unwrap_or_default();
+                        if seen.insert((c[1].to_owned(), version.to_owned())) {
+                            add(&c[1], version, "RubyGems", false)?;
+                        }
                     } else {
                         add(line.trim(), "", "RubyGems", false)?;
                     }
@@ -1411,63 +1611,73 @@ fn parse_lockfile_entries(
             }
         }
         "pnpm-lock.yaml" => {
-            let data = lock_validation::pnpm_lock(text)?;
-            let mapping = |key: &str| match data.get(key) {
-                None | Some(serde_norway::Value::Null) => Ok(None),
-                Some(serde_norway::Value::Mapping(m)) => Ok(Some(m)),
-                Some(_) => Err(error(format!("invalid {key} map"))),
-            };
-            let packages = mapping("packages")?;
-            let importers = mapping("importers")?.filter(|m| !m.is_empty());
-            // Declared empty: `packages: {}`, or importers that all declare nothing.
-            empty = packages.is_none_or(|p| p.is_empty())
-                && match importers {
-                    Some(importers) => importers
-                        .values()
-                        .all(|i| i.as_mapping().is_some_and(|m| m.is_empty())),
-                    None => packages.is_some(),
+            // A declared-empty lock is empty in every document; a package listed in two
+            // documents is read once.
+            let documents = lock_validation::pnpm_lock(text)?;
+            let (mut all_empty, mut seen) = (true, std::collections::BTreeSet::new());
+            for data in &documents {
+                let mapping = |key: &str| match data.get(key) {
+                    None | Some(serde_norway::Value::Null) => Ok(None),
+                    Some(serde_norway::Value::Mapping(m)) => Ok(Some(m)),
+                    Some(_) => Err(error(format!("invalid {key} map"))),
                 };
-            for (key, body) in packages.into_iter().flatten() {
-                let Some(key) = key.as_str() else {
-                    add("", "", "npm", false)?;
-                    continue;
-                };
-                let key = key.strip_prefix('/').unwrap_or(key);
-                let source_resolution = body
-                    .get("resolution")
-                    .and_then(serde_norway::Value::as_mapping)
-                    .is_some_and(|r| {
-                        ["tarball", "directory", "repo"]
-                            .iter()
-                            .any(|k| r.contains_key(*k))
-                    });
-                if lock_validation::source(key)
-                    || (lock_validation::locator(key).is_none() && source_resolution)
-                {
-                    unresolved_paths.push(lock_validation::uncheckable(
-                        key,
-                        "non-registry pnpm source reference",
-                    ));
-                    continue;
-                }
-                let key = if let Some((base, _)) = key.split_once('(') {
-                    if !key.ends_with(')') {
+                let packages = mapping("packages")?;
+                let importers = mapping("importers")?.filter(|m| !m.is_empty());
+                // Declared empty: `packages: {}`, or importers that all declare nothing.
+                let doc_empty = packages.is_none_or(|p| p.is_empty())
+                    && match importers {
+                        Some(importers) => importers
+                            .values()
+                            .all(|i| i.as_mapping().is_some_and(|m| m.is_empty())),
+                        None => packages.is_some(),
+                    };
+                all_empty &= doc_empty;
+                for (key, body) in packages.into_iter().flatten() {
+                    let Some(key) = key.as_str() else {
+                        add("", "", "npm", false)?;
+                        continue;
+                    };
+                    let key = key.strip_prefix('/').unwrap_or(key);
+                    if !seen.insert(key) {
+                        continue;
+                    }
+                    let source_resolution = body
+                        .get("resolution")
+                        .and_then(serde_norway::Value::as_mapping)
+                        .is_some_and(|r| {
+                            ["tarball", "directory", "repo"]
+                                .iter()
+                                .any(|k| r.contains_key(*k))
+                        });
+                    if lock_validation::source(key)
+                        || (lock_validation::locator(key).is_none() && source_resolution)
+                    {
                         unresolved_paths.push(lock_validation::uncheckable(
                             key,
-                            "malformed peer version suffix",
+                            "non-registry pnpm source reference",
                         ));
                         continue;
                     }
-                    base
-                } else {
-                    key
-                };
-                if let Some((n, v)) = lock_validation::locator(key) {
-                    add(n, v, "npm", false)?;
-                } else {
-                    add(key, "", "npm", false)?;
+                    let key = if let Some((base, _)) = key.split_once('(') {
+                        if !key.ends_with(')') {
+                            unresolved_paths.push(lock_validation::uncheckable(
+                                key,
+                                "malformed peer version suffix",
+                            ));
+                            continue;
+                        }
+                        base
+                    } else {
+                        key
+                    };
+                    if let Some((n, v)) = lock_validation::locator(key) {
+                        add(n, v, "npm", false)?;
+                    } else {
+                        add(key, "", "npm", false)?;
+                    }
                 }
             }
+            empty = all_empty;
         }
         "bun.lock" => {
             empty = lock_validation::empty_text(name, text);
@@ -1498,6 +1708,11 @@ fn parse_lockfile_entries(
             }
         }
         name if name.starts_with("requirements") => {
+            // The hint names the real file: a requirements folder's `base.txt`, or `requirements.in`.
+            let name = Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(name);
             // Windows editors start a file with a byte-order mark.
             let text = text.strip_prefix('\u{feff}').unwrap_or(text);
             empty = text
@@ -1506,6 +1721,7 @@ fn parse_lockfile_entries(
             // `===` (arbitrary equality) is an exact pin too.
             let exact = rx(r"^[\w.-]+(?:\[[^\]]+\])?===?[^\s;*\\=]+(?:\s|;|$)");
             let pin = rx(r"^([\w.-]+)(?:\[[^\]]+\])?===?([^\s;\\=]+)");
+            let unpinned = rx(r"^([A-Za-z0-9][\w.-]*)");
             for (number, line) in text.lines().enumerate() {
                 let line = line.trim();
                 if ["-r", "--requirement"].iter().any(|p| line.starts_with(p)) {
@@ -1526,10 +1742,15 @@ fn parse_lockfile_entries(
                     continue;
                 }
                 if !exact.is_match(line) {
-                    unresolved_paths.push(lock_validation::uncheckable(
-                        &format!("line {}", number + 1),
-                        line,
-                    ));
+                    // A bare name or a range (`fastapi>=0.115  # api`), not a URL or path.
+                    let spec = line.split(" #").next().unwrap_or(line).trim_end();
+                    let issue = match unpinned.captures(spec) {
+                        Some(c) if !spec.contains(['@', '/', '\\']) && !spec.contains("==") => {
+                            lock_validation::unpinned(&c[1], number + 1, name)
+                        }
+                        _ => lock_validation::uncheckable(&format!("line {}", number + 1), line),
+                    };
+                    unresolved_paths.push(issue);
                     continue;
                 }
                 if let Some(c) = pin.captures(line) {
@@ -1547,13 +1768,6 @@ fn parse_lockfile_entries(
         return Err(over_input_cap());
     }
     issues.extend(unresolved_paths.kept.into_inner());
-    if stdlib_minimum {
-        for p in out.iter_mut().filter(|p| p.name == "stdlib") {
-            p.extra
-                .insert("version_basis".into(), json!("go-directive-minimum"));
-            p.extra.insert("note".into(), json!("Go standard library version from the go directive, a minimum; the toolchain that builds this module may be newer, so findings may not apply"));
-        }
-    }
     if out.is_empty() && issues.is_empty() && !empty {
         return Err(error(format!(
             "no readable package entries; file content {}",
@@ -1561,6 +1775,19 @@ fn parse_lockfile_entries(
         )));
     }
     Ok((out, issues))
+}
+
+/// True for a Microsoft Store app alias under `%LOCALAPPDATA%\Microsoft\WindowsApps`. Stock Windows
+/// ships `python3.exe` there as a stub that only prints "Python was not found" and exits 9009.
+pub fn store_alias(binary: &Path, local_app_data: Option<&std::ffi::OsStr>) -> bool {
+    let Some(local) = local_app_data.filter(|l| !l.is_empty()) else {
+        return false;
+    };
+    let folder = Path::new(local).join("Microsoft").join("WindowsApps");
+    binary.parent().is_some_and(|p| {
+        p.to_string_lossy()
+            .eq_ignore_ascii_case(&folder.to_string_lossy())
+    })
 }
 
 pub fn which(name: &str) -> Option<PathBuf> {
@@ -1681,7 +1908,9 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
     }
     // Lockfile listings are read once per scan, never carried into the next one.
     LISTINGS.with(|cache| cache.borrow_mut().clear());
-    let mut read_empty = false;
+    // Errors Vorda names as not covered (an unsupported format, an unlocked manifest, an
+    // unpinned entry) rather than a read or lookup that failed. Each is also in `errors`.
+    let mut gaps = Vec::<String>::new();
     let (mut packages, mut errors, mut warnings, mut completed, mut evidence) = (
         Vec::<Package>::new(),
         Vec::<String>::new(),
@@ -1742,12 +1971,30 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                     }
                 };
                 work += 1;
-                if work > 100_000 {
+                if work
+                    > if options.machine {
+                        MACHINE_WORK
+                    } else {
+                        100_000
+                    }
+                {
                     errors.push(format!("{}: traversal work limit exceeded", root.display()));
                     stack.clear();
                     break;
                 }
                 let path = entry.path();
+                // Recorded as the user spelled it: path equality ignores what a string compare
+                // would not (a Windows drive letter's case), and the scan scope uses the spelling.
+                if let Some(excluded) = options.exclude.iter().find(|e| **e == path) {
+                    evidence.push(json!({"kind":"excluded","path":excluded}));
+                    continue;
+                }
+                if options.machine && depth <= 1 && HOME_SKIP.iter().any(|s| path == root.join(s)) {
+                    evidence.push(
+                        json!({"kind":"skipped-folder","path":path,"reason":COPY_HOME_SKIPPED}),
+                    );
+                    continue;
+                }
                 let name = entry.file_name().to_string_lossy().into_owned();
                 let metadata = match fs::symlink_metadata(&path) {
                     Ok(m) => m,
@@ -1786,10 +2033,17 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                     if input::linked(&path) {
                         if let Some(real) = walked_elsewhere(&path, &root) {
                             warnings.push(format!(
-                                "{}: skipped symlink directory; its target {} is inside the scanned folder and is read there",
+                                "{}: skipped symlink directory; its target {} {READ_THERE}",
                                 path.display(),
                                 real.display()
                             ));
+                            continue;
+                        }
+                        // The home folder links out to disks and synced folders a machine
+                        // scan does not own; `vorda scan PATH` reads one strictly.
+                        if options.machine {
+                            warnings.push(format!("{}: {COPY_HOME_LINK}", path.display()));
+                            evidence.push(json!({"kind":"skipped-folder","path":path,"reason":COPY_HOME_LINK}));
                             continue;
                         }
                         let reason = "skipped symlink directory; its package coverage is unknown";
@@ -1801,7 +2055,7 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                     } else {
                         stack.push((path, depth + 1));
                     }
-                } else if supported(&name) {
+                } else if supported(&name) || requirements_input(&path, &root) {
                     files.push(path);
                 } else {
                     unread.push(path);
@@ -1820,11 +2074,18 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
             {
                 continue;
             }
-            let reason = match unsupported(&path, &root) {
-                Ok(Some(reason)) => reason,
+            let (reason, gap) = match unsupported(&path, &root) {
+                Ok(Some(reason)) => (reason, true),
                 Ok(None) => continue,
-                Err(e) => e.to_string(),
+                Err(e) => (e.to_string(), false),
             };
+            if test_data(&path, &root) {
+                skip_test_data(&path, &reason, &mut warnings, &mut evidence);
+                continue;
+            }
+            if gap {
+                gaps.push(format!("{}: {reason}", path.display()));
+            }
             errors.push(format!("{}: {reason}", path.display()));
             evidence.push(json!({"kind":"incomplete-input","path":path,"reason":reason}));
         }
@@ -1854,7 +2115,6 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                     doubt.map_or(Ok((items, issues)), |reason| Err(error(reason)))
                 }) {
                 Ok((items, issues)) => {
-                    read_empty |= items.is_empty() && issues.is_empty();
                     packages.extend(items);
                     if issues.is_empty() {
                         completed.push(path.to_string_lossy().into_owned());
@@ -1864,14 +2124,24 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                             "{} uncheckable package entries were not queried",
                             issues.len()
                         );
-                        errors.extend(
-                            issues
-                                .into_iter()
-                                .map(|issue| format!("{}: {issue}", path.display())),
-                        );
+                        if test_data(&path, &root) {
+                            skip_test_data(&path, &reason, &mut warnings, &mut evidence);
+                            continue;
+                        }
+                        for issue in issues {
+                            let error = format!("{}: {issue}", path.display());
+                            // A `Coverage:` issue means entries may be missing, not one named skip.
+                            if !issue.starts_with("Coverage:") {
+                                gaps.push(error.clone());
+                            }
+                            errors.push(error);
+                        }
                         evidence
                             .push(json!({"kind":"incomplete-input","path":path,"reason":reason}));
                     }
+                }
+                Err(e) if test_data(&path, &root) => {
+                    skip_test_data(&path, &e.to_string(), &mut warnings, &mut evidence)
                 }
                 Err(e) => {
                     errors.push(format!("{}: {e}", path.display()));
@@ -1928,7 +2198,12 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
         ] {
             let path = format!("tool:{binary}");
             if which(binary).is_none() {
-                if options.scheduled {
+                // A scheduled run may not see the PATH a person's shell has. A machine scan
+                // lists the tool as unseen without counting it checked, so a saved finding
+                // on it stays open; a project scan that asked for tools stays unknown.
+                if options.scheduled && options.machine {
+                    evidence.push(json!({"kind":"unseen-scheduled","path":path}));
+                } else if options.scheduled {
                     errors.push(format!(
                         "{path}: scheduled lookup unavailable; installation status unknown"
                     ));
@@ -1953,12 +2228,30 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
                     completed.push(path.clone());
                     evidence.push(json!({"kind":"supported-input","path":path}));
                 }
+                // Only the stub's own refusal: a timeout or launch failure stays an error.
+                Err(e)
+                    if cfg!(windows)
+                        && e.to_string().contains("Python was not found")
+                        && which(binary).is_some_and(|b| {
+                            store_alias(&b, std::env::var_os("LOCALAPPDATA").as_deref())
+                        }) =>
+                {
+                    completed.push(path.clone());
+                    evidence.push(json!({"kind":"observed-absence","path":path}));
+                }
                 Err(e) => errors.push(e.to_string()),
             }
         }
     }
     if options.browsers {
-        let (builds, err) = super::browsers::collect(&options.roots, options.cache_dir.as_deref());
+        // A machine scan reads the browser caches only: walking all of home for unpacked
+        // Chrome for Testing builds would hit the browser walk's limit.
+        let roots = if options.machine {
+            &[][..]
+        } else {
+            &options.roots[..]
+        };
+        let (builds, err) = super::browsers::collect(roots, options.cache_dir.as_deref());
         for b in builds {
             let path = super::string(&b, "path");
             packages.push(package(
@@ -1978,8 +2271,14 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
         }
         errors.extend(err);
     }
-    // A lockfile that read cleanly and declares nothing is a project with no dependencies.
-    if packages.is_empty() && errors.is_empty() && !read_empty {
+    // A requested source beyond the folder walk that found nothing (no package manager, no
+    // browser) proves nothing; an empty folder alone is nothing to scan. OCI returned above.
+    let other_sources = options.os_packages
+        || options.tools
+        || options.browsers
+        || options.installed_apps
+        || !options.installed_roots.is_empty();
+    if other_sources && packages.is_empty() && errors.is_empty() {
         let reason = "No package versions found; nothing was checked; package coverage is unknown";
         errors.push(reason.into());
         evidence.push(json!({"kind":"incomplete-input","reason":reason}));
@@ -1999,7 +2298,7 @@ pub fn collect(options: &InventoryOptions) -> Result<Record> {
         })
         .collect();
     Ok(record(
-        json!({"source_outcomes":source_outcomes,"packages":unique.into_values().collect::<Vec<_>>(),"errors":errors,"warnings":warnings,"completed_paths":completed,"status":if errors.is_empty(){"complete"}else{"unknown"},"observed":super::now(),"input_evidence":{"status":if !evidence.is_empty()&&errors.is_empty(){"complete"}else{"partial"},"observations":evidence}}),
+        json!({"source_outcomes":source_outcomes,"packages":unique.into_values().collect::<Vec<_>>(),"errors":errors,"coverage_gaps":gaps,"warnings":warnings,"completed_paths":completed,"status":if errors.is_empty(){"complete"}else{"unknown"},"observed":super::now(),"input_evidence":{"status":if !evidence.is_empty()&&errors.is_empty()&&evidence.iter().all(|e|e["kind"]!="not-covered-test-data"){"complete"}else{"partial"},"observations":evidence}}),
     ))
 }
 

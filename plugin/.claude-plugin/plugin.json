@@ -1,6 +1,6 @@
 {
   "name": "vorda",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Private vulnerability mailbox for Claude Code: scan deps, OS packages, browsers and MCP servers; read and acknowledge alerts.",
   "author": {"name": "Ken-Jee"},
   "license": "MIT",

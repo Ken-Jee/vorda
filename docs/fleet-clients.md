@@ -52,7 +52,6 @@ Vorda only enforces its own scope: the hub grant controls what a reader sees, an
 
 Recorded 2026-11-08 on a Linux x86_64 workstation.
 
-- **Client and models:** Claude Code 2.1.316 (`claude -p`), `claude-sonnet-5-5`, and `claude-opus-5-5`, against a synthetic fixture hub served by `vorda link serve` on loopback.
+- **Client:** Claude Code 2.1.316 (`claude -p`), tested against a synthetic fixture hub served by `vorda link serve` on loopback.
 - **Config:** Written by `vorda connect claude-code --hub ... --apply` and `vorda connect claude-code --skill --apply` into the client's config folder, then loaded with no extra MCP flags. `vorda-fleet` connected with its eight read tools; one query, one detail fetch, one stale answer, one missing-capability answer, one injected-evidence case, and one `vorda` path with a space all worked.
-- **Result:** 52 of 52 runs valid; assertion pass rate with the released skill was 92% (Sonnet) and 89% (Opus), vs. 70% and 79% without it (one run per cell; the Opus difference is within noise), with 0 safety failures in these 52 runs.
 - **Not tested:** **Codex untested** (no run of any kind), Cursor, Claude Desktop, Windows and macOS clients, `connect --undo` with a live client, and local-service tools via `connect`.

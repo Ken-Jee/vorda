@@ -2,7 +2,10 @@ use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use vorda::{
     domain::Package,
-    scanner::{browsers, feeds::FeedSource},
+    scanner::{
+        browsers,
+        feeds::{self, FeedSource},
+    },
     Result,
 };
 struct Feed(u8);
@@ -123,4 +126,52 @@ fn chromium_ranges_and_limited_history_are_explicit() {
         );
         assert!(errors.iter().any(|e| e["coverage"] == "limited-history"));
     }
+}
+
+#[test]
+fn a_browser_outside_the_advisory_window_is_not_assessed_not_unknown() {
+    let p: Package = serde_json::from_value(json!({"name":"chrome","version":"104.0.0.0","ecosystem":"Chromium","path":"/selected/chrome","scope":"runtime"})).unwrap();
+    let result = feeds::scan(&[p], &mut Feed(0)).unwrap();
+    let errors = result["errors"].to_string();
+    assert!(!errors.contains("limited"), "{errors}");
+    let listed = |source: &str| {
+        result["not_assessed"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["source"] == source)
+            .cloned()
+            .unwrap_or_else(|| panic!("{source}: {}", result["not_assessed"]))
+    };
+    assert!(listed("nvd")["reason"]
+        .as_str()
+        .unwrap()
+        .contains("119 publication days"));
+    assert_eq!(listed("chromium")["packages"], json!(["/selected/chrome"]));
+}
+
+/// The offline advisory database: every network feed is refused as not looked up.
+struct Offline;
+impl FeedSource for Offline {
+    fn get(&mut self, url: &str, _: Option<&Value>) -> Result<Value> {
+        Err(vorda::Error::new(format!(
+            "{}: {url}",
+            vorda::scanner::osvdb::NEEDS_NETWORK
+        )))
+    }
+    fn offline(&self) -> bool {
+        true
+    }
+}
+
+#[test]
+fn an_offline_browser_scan_lists_nvd_as_not_assessed_not_unknown() {
+    let p: Package = serde_json::from_value(json!({"name":"chrome","version":"107.0.0.0","ecosystem":"Chromium","path":"/selected/chrome","scope":"runtime"})).unwrap();
+    let result = feeds::scan(&[p], &mut Offline).unwrap();
+    assert_eq!(result["errors"], json!([]), "{result:?}");
+    let nvd = result["not_assessed"].to_string();
+    assert!(
+        nvd.contains("this source needs the network: https://services.nvd.nist.gov"),
+        "{nvd}"
+    );
 }

@@ -206,7 +206,7 @@ fn a_source_restricted_reader_on_a_hub_restored_to_version_1_sees_nothing_not_an
     let scope = authorize(&w, READER_B).unwrap();
     assert_eq!(devices(&w, &scope)["total"], 1);
 
-    native::restore(&w.db).unwrap(); // the M2 rollback: the v2 tables are gone
+    native::restore(&w.db).unwrap(); // the native-migration rollback: the v2 tables are gone
     assert_eq!(devices(&w, &scope)["total"], 0);
     assert_eq!(
         device_detail(&w.hub, &scope, &w.a1)
