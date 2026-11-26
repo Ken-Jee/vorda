@@ -124,7 +124,12 @@ fn mcp_checks_configured_roots_without_changing_scope_or_allowing_other_roots() 
     );
     assert_eq!(result["packages"][0]["name"], "requests");
     let denied = json!({"method":"tools/call","params":{"name":"check","arguments":{"offline":true,"roots":[other]}}});
-    assert!(mcp::call(&state, &denied, None, None).is_err());
+    assert_eq!(
+        mcp::call(&state, &denied, None, None)
+            .unwrap_err()
+            .http_status,
+        Some(403)
+    );
 }
 
 #[cfg(unix)]
@@ -156,31 +161,64 @@ fn mcp_does_not_remove_symlink_evidence_before_scanning() {
 }
 
 #[test]
-fn mcp_without_config_accepts_its_working_directory() {
+fn mcp_defaults_to_its_working_directory_until_roots_are_configured() {
     use std::io::Write;
     use std::process::{Command, Stdio};
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path().join("project");
+    let other = temp.path().join("other");
+    let state = temp.path().join("state");
     fs::create_dir(&project).unwrap();
+    fs::create_dir(&other).unwrap();
+    fs::create_dir(&state).unwrap();
+    fs::write(project.join("requirements.txt"), "example==1.2.3\n").unwrap();
     let cwd = project.to_string_lossy().into_owned();
     #[cfg(windows)]
     let cwd = format!("{}{}", cwd[..1].to_lowercase(), &cwd[1..]);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_vorda"))
-        .args([
-            "--state",
-            temp.path().join("state").to_str().unwrap(),
-            "mcp",
-        ])
-        .current_dir(cwd)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
+    let call = |tool: &str, args: Value| {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_vorda"))
+            .arg("--state")
+            .arg(&state)
+            .arg("mcp")
+            .current_dir(&cwd)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        writeln!(child.stdin.take().unwrap(), "{}", json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":tool,"arguments":args}})).unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+    let config = state.join("config.json");
+    for saved in [false, true] {
+        if saved {
+            fs::write(&config, r#"{"advisories":"offline-db"}"#).unwrap();
+        }
+        for (tool, args) in [("inventory", json!({})), ("check", json!({"offline":true}))] {
+            let reply = call(tool, args);
+            let data: Value = serde_json::from_str(
+                reply["result"]["content"][0]["text"]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("{tool} with saved choice {saved}: {reply}")),
+            )
+            .unwrap();
+            assert_eq!(data["packages"][0]["name"], "example");
+        }
+    }
+    let denied = call("inventory", json!({"roots":[other]}));
+    assert_eq!(
+        denied["error"]["message"],
+        "check roots must be configured locally"
+    );
+    for roots in [json!([]), Value::Null] {
+        fs::write(
+            &config,
+            json!({"advisories":"offline-db","roots":roots}).to_string(),
+        )
         .unwrap();
-    writeln!(child.stdin.take().unwrap(), "{}", json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{"offline":true}}})).unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(output.status.success());
-    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(response.get("result").is_some(), "{response}");
+        assert!(call("inventory", json!({})).get("error").is_some());
+    }
 }
 
 #[test]

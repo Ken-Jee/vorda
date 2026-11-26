@@ -120,7 +120,7 @@
     var tail = inclusive ? 'up to and including ' + end : 'before ' + end;
     return !intro || intro === '0' ? 'Versions ' + tail : 'From ' + intro + ', ' + tail;
   }
-  var SEV = { CRITICAL: 'Critical', HIGH: 'High', MODERATE: 'Moderate', MEDIUM: 'Moderate', LOW: 'Low' };
+  var SEV = { CRITICAL: 'Critical', HIGH: 'High', MODERATE: 'Medium', MEDIUM: 'Medium', LOW: 'Low' };
 
   function mergeAdvisories(details) {
     var byKey = {}, groups = [];

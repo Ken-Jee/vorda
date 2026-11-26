@@ -5,8 +5,8 @@ Here is what is unfinished, experimental, or not covered yet. See the
 
 ## Release status
 
-v0.2.0 is the current release (the first signed release; v0.1.0 and
-v0.1.1 were unsigned). GitHub Releases provides signed static
+v0.2.1 is the current release (v0.2.0 was the first signed release;
+v0.1.0 and v0.1.1 were unsigned). GitHub Releases provides signed static
 executables for Linux (x86_64 and arm64, musl with OpenSSL compiled in)
 with SHA-256 checksums and minisign signatures (key ID
 `57E5204A70E3811B`), so `vorda verify-self` reports `verified` after
@@ -19,11 +19,20 @@ installer options, manual verification and source builds, and the
 
 Usage errors exit 64 (EX_USAGE) and report JSON status `usage_error`. The GitHub Action fails on exit 64 whatever `fail-on-findings` is set to.
 
-- Exit 0: no known findings in completed inputs. Exit 3: findings. Exit 2: incomplete
-  scan (`unknown`) or operational error. Read `errors` and `coverage_evidence` before
-  relying on a result.
-- Anything Vorda could not read or check yields unknown, never clean: no supported input
-  found, an unreadable supported file, an empty lockfile whose manifest declares
+| Result | Example | `vorda scan` exit | `status` | Action with `fail-on-findings: 'true'` | Action `coverage`, SARIF uploaded |
+| --- | --- | --- | --- | --- | --- |
+| Clean | every package checked, none vulnerable | 0 | `no-known-findings` | passes | `complete`, yes |
+| Finding | a vulnerable package | 3 | `vulnerable` | fails (exit 1) | `complete`, yes |
+| Finding with gaps | a vulnerable package, plus a package or file that was not checked | 3 | `vulnerable` | fails (exit 1) | `partial`, no |
+| Not assessed | a `Gemfile.lock` in the project you scan, under the offline database | 2 | `unknown` | fails (exit 2) | `partial`, no |
+| Error | a lockfile Vorda cannot read, or a failed lookup | 2 | `unknown` | fails (exit 2) | `partial`, no |
+| Nothing to scan | no dependency file Vorda recognizes (prints a "Nothing to scan" notice) | 0 | `no-known-findings` | fails (exit 2) | `partial`, no |
+
+A machine scan (`vorda scan` with no path) lists packages it could not check under `not_assessed` and marks coverage partial, but does not report `unknown` for them, so it exits 0 when nothing is found. With `fail-on-findings: 'false'`, the Action passes in every row and logs a warning for the unknown and partial ones.
+
+- Read `errors`, `not_assessed` and `coverage_evidence` before relying on a result.
+- Anything Vorda could not read or check yields unknown, never clean: an unreadable
+  supported file, an empty lockfile whose manifest declares
   dependencies, a recognised unsupported format, a supported file skipped as a link or
   special file, or a nested project not listed by an upper lockfile. See
   [recognised inputs](reference.md#inventory-and-matching) and
@@ -48,7 +57,8 @@ Usage errors exit 64 (EX_USAGE) and report JSON status `usage_error`. The GitHub
   MCP `check` also defaults to the local offline advisory database with no automatic
   network fallback. `scan --offline-db` covers npm, PyPI, crates.io, and Go. Other
   ecosystems, `--os-packages`, and `--tools` go in `not_assessed` offline, so they
-  do not make a scan unknown on their own. They set `coverage_evidence.status` to
+  do not make a machine scan unknown on their own; lockfile packages in a project you
+  name do (exit 2). They set `coverage_evidence.status` to
   `partial`, and `--online` checks them. Browser feeds that need the network also
   go in `not_assessed`, but `--browsers` stays unknown with no findings, online and
   offline, because Chrome data covers only the latest 119 publication days. Offline,

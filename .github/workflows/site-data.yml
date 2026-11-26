@@ -1,0 +1,56 @@
+name: Site data refresh
+# Regenerates docs/data/snapshot.json (Search, Explore, Advisory, Package, Sources)
+# from OSV.dev and opens a pull request with the change. It never pushes to main
+# and never publishes anything by itself.
+#
+# Off by default: it runs only when started by hand. To run it on a schedule,
+# uncomment the two schedule lines below. Opening the PR needs the repository
+# setting "Allow GitHub Actions to create and approve pull requests" (Settings,
+# Actions, General). A PR opened with the workflow token does not start other
+# workflows, so run CI on it by hand (or push an empty commit) before merging.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "17 6 * * *"
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: site-data
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ${{ vars.VORDA_LIGHT_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Test the refresh script
+        run: python3 -m unittest discover site-data
+      - name: Refresh the snapshot
+        run: python3 site-data/refresh_snapshot.py
+      - name: Open a pull request if the advisories changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # generatedAt changes on every run; only open a PR when a record changed.
+          if python3 -c 'import json,subprocess,sys; o=json.loads(subprocess.check_output(["git","show","HEAD:docs/data/snapshot.json"])); n=json.load(open("docs/data/snapshot.json")); sys.exit(0 if o["advisories"]==n["advisories"] else 1)'; then
+            echo "No advisory changes."
+            exit 0
+          fi
+          branch="site-data/refresh-$(date -u +%Y%m%d%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add docs/data/snapshot.json
+          git commit -m "Refresh the site's advisory snapshot"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$remote" "$branch"
+          if ! gh pr create --base main --head "$branch" \
+            --title "Refresh the site's advisory snapshot" \
+            --body "Regenerated docs/data/snapshot.json from OSV.dev with site-data/refresh_snapshot.py."; then
+            git push "$remote" --delete "$branch"
+            exit 1
+          fi

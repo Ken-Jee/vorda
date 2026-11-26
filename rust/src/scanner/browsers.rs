@@ -211,7 +211,7 @@ pub fn collect(roots: &[PathBuf], cache: Option<&Path>) -> (Vec<Value>, Vec<Stri
                         let v = if old["stamp"] == stamp {
                             string(old, "version").to_owned()
                         } else {
-                            version_with_trust(&dir, &exe, source == "browser cache")?
+                            version(&dir, &exe)?
                         };
                         versions[&key] = json!({"stamp":stamp,"version":v});
                         Ok(v)
@@ -223,7 +223,7 @@ pub fn collect(roots: &[PathBuf], cache: Option<&Path>) -> (Vec<Value>, Vec<Stri
                         }
                     };
                     let platform = name.split_once('-').map(|(_, p)| p);
-                    builds.insert(dir.clone(),json!({"path":exe,"version":if v=="unknown"{Value::Null}else{json!(v)},"source":source,"label":name,"layout_dir":dir,"root":root,"platform":platform,"kind":if name.contains("headless"){"chrome-headless-shell"}else{"chrome"},"version_source":"static metadata or trusted cache probe"}));
+                    builds.insert(dir.clone(),json!({"path":exe,"version":if v=="unknown"{Value::Null}else{json!(v)},"source":source,"label":name,"layout_dir":dir,"root":root,"platform":platform,"kind":if name.contains("headless"){"chrome-headless-shell"}else{"chrome"},"version_source":"static metadata"}));
                 }
                 continue;
             }
@@ -290,29 +290,45 @@ pub fn collect(roots: &[PathBuf], cache: Option<&Path>) -> (Vec<Value>, Vec<Stri
         }
     }
     let mut out: Vec<_> = builds.into_values().collect();
-    let dotted = regex::Regex::new(r"\d+\.\d+\.\d+\.\d+").unwrap();
-    for name in [
-        "google-chrome-stable",
-        "google-chrome",
-        "chromium",
-        "chromium-browser",
-    ] {
-        if let Some(path) = super::inventory::which(name) {
-            let mut v: String = "unknown".into();
-            for argv in [
-                vec!["dpkg-query", "-W", "-f=${Version}", name],
-                vec!["pacman", "-Q", name],
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::{Command, Stdio};
+
+        let dotted = regex::Regex::new(r"\d+\.\d+\.\d+\.\d+").unwrap();
+        for name in [
+            "google-chrome-stable",
+            "google-chrome",
+            "chromium",
+            "chromium-browser",
+        ] {
+            let Some(path) = super::inventory::which(name) else {
+                continue;
+            };
+            let mut version = "unknown".to_owned();
+            for (program, args) in [
+                ("/usr/bin/dpkg-query", &["-W", "-f=${Version}", name][..]),
+                ("/usr/bin/pacman", &["-Q", name][..]),
             ] {
-                if super::inventory::which(argv[0]).is_some() {
-                    if let Ok(text) = super::inventory::run(&argv, 5) {
-                        if let Some(m) = dotted.find(&text) {
-                            v = m.as_str().into();
-                            break;
-                        }
-                    }
+                let mut command = Command::new(program);
+                command
+                    .args(args)
+                    .env_clear()
+                    .current_dir("/")
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped());
+                let Ok(output) = crate::repair::commands::bounded_status(command, 5) else {
+                    continue;
+                };
+                if !output.status.success() {
+                    continue;
+                }
+                if let Some(found) = dotted.find(&String::from_utf8_lossy(&output.stdout)) {
+                    version = found.as_str().into();
+                    break;
                 }
             }
-            out.push(json!({"name":name,"path":path,"version":v}));
+            out.push(json!({"name":name,"path":path,"version":version}));
         }
     }
     #[cfg(windows)]
@@ -407,36 +423,8 @@ fn version_stamp(dir: &Path, exe: &Path) -> Result<Value> {
         }
     }
     manifests.sort();
-    Ok(json!([info.len(), modified, mode, manifests]))
-}
-fn version_with_trust(dir: &Path, exe: &Path, trusted: bool) -> Result<String> {
-    let static_version = version(dir, exe)?;
-    if static_version != "unknown" || !trusted {
-        return Ok(static_version);
-    }
-    #[cfg(unix)]
-    {
-        use std::io::Read;
-        use std::os::unix::fs::MetadataExt;
-        let mut file = input::open_regular(exe, None, 512_000_000)?;
-        let mut magic = [0; 4];
-        file.read_exact(&mut magic).map_err(error)?;
-        let info = file.metadata().map_err(error)?;
-        if magic == *b"\x7fELF"
-            && info.uid() == unsafe { libc::getuid() }
-            && info.mode() & 0o22 == 0
-        {
-            if let Ok(text) = super::inventory::run(&[&exe.to_string_lossy(), "--version"], 30) {
-                if let Some(m) = regex::Regex::new(r"\d+\.\d+\.\d+\.\d+")
-                    .unwrap()
-                    .find(&text)
-                {
-                    return Ok(m.as_str().into());
-                }
-            }
-        }
-    }
-    Ok(static_version)
+    // Invalidate old entries that may have come from running a cached browser.
+    Ok(json!(["static", info.len(), modified, mode, manifests]))
 }
 fn tuple(v: &str) -> Option<Vec<u64>> {
     v.split('.').map(|s| s.parse().ok()).collect()

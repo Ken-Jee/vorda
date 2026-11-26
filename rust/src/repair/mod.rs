@@ -665,28 +665,36 @@ impl Repairs {
         }
         // A repair proves only the claimed package. It must not retire other
         // findings sharing its manifest or publish a complete scan for that path.
-        let result = Value::Object(crate::scanner::scan(
-            std::slice::from_ref(&package),
-            &store.root.join("cache"),
-            false,
-        )?);
+        let packages = std::slice::from_ref(&package);
+        let result = Value::Object(if crate::scanner::osvdb::configured(&self.state)? {
+            crate::scanner::feeds::scan(
+                packages,
+                &mut crate::scanner::osvdb::LocalDb::new(&crate::scanner::osvdb::root()),
+            )?
+        } else {
+            crate::scanner::scan(packages, &store.root.join("cache"), false)?
+        });
         let new_asset = crate::store::asset(&package)?;
         if result["errors"].as_array().is_none_or(|e| !e.is_empty())
             || result["covered"]
                 .as_array()
                 .is_none_or(|a| !a.contains(&json!(new_asset)))
-            || result["findings"].as_array().is_none_or(|findings| {
-                findings.iter().any(|f| {
-                    f["key"] == item
-                        || finding["advisory"].is_string()
-                            && (f["advisory"] == finding["advisory"]
-                                || f["aliases"]
-                                    .as_array()
-                                    .is_some_and(|a| a.contains(&finding["advisory"])))
-                })
-            })
         {
-            return Err(Error::new("finding persists or coverage is unknown"));
+            return Err(Error::new(
+                "repair is unverified because advisory coverage is unknown",
+            ));
+        }
+        if result["findings"].as_array().is_none_or(|findings| {
+            findings.iter().any(|f| {
+                f["key"] == item
+                    || finding["advisory"].is_string()
+                        && (f["advisory"] == finding["advisory"]
+                            || f["aliases"]
+                                .as_array()
+                                .is_some_and(|a| a.contains(&finding["advisory"])))
+            })
+        }) {
+            return Err(Error::new("the finding persists after repair"));
         }
         let mut findings = store
             .active()?

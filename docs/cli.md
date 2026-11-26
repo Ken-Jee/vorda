@@ -67,7 +67,7 @@ The choice is saved as "advisories": "offline-db" or "advisories": "online" in c
 
 In offline mode, setup runs vorda db update. If the download fails or any line is not updated, setup stops with exit 2 without scanning; the choice stays saved so you can run vorda db update and then vorda scan.
 
-Without --watch or --no-watch, setup asks in a terminal whether to install scheduled hourly and daily machine scans via systemd, cron, launchd or Windows Task Scheduler (default no; only y or yes installs), and skips them outside a terminal. Scheduled offline scans do not refresh the local advisory database: run vorda db update daily (for example from your own scheduler), or scans go unknown once the database is more than 72 hours old.
+Without --watch or --no-watch, setup asks in a terminal whether to install scheduled hourly and daily machine scans via systemd, cron, launchd or Windows Task Scheduler (default no; only y or yes installs), and skips them outside a terminal. On systemd and cron, the daily offline schedule refreshes the local advisory database by default. On other backends or after an install with --no-db-refresh, run vorda db update daily.
 
 Last, setup runs vorda scan on this machine (OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under home), prints a reminder to run vorda dashboard, and exits with the scan's exit code (0 no known findings, 3 vulnerable, 2 unknown). Running bare vorda with no arguments in a terminal (outside CI) before any mode is set in config.json or VORDA_ADVISORIES starts setup automatically; vorda --help, -h and help always print help.
 ```
@@ -112,7 +112,7 @@ Run `vorda setup` (or bare `vorda` in a terminal on first run) to choose offline
 
 ### Offline coverage
 
-Offline mode checks npm, PyPI, crates.io, and Go packages regardless of inventory source. Other ecosystems and network-only feeds are listed in `not_assessed` instead of `errors`, so they do not make a scan `unknown` on their own. They set `coverage_evidence.status` to `partial`; pass `--online` to check them. Missing or stale indexes for those four ecosystems still report errors (`unknown`).
+Offline mode checks npm, PyPI, crates.io, and Go packages regardless of inventory source. Other ecosystems and network-only feeds are listed in `not_assessed` instead of `errors`, so they do not make a machine scan `unknown` on their own; a scan of a project you name (PATH or `--root`) with such lockfile packages is `unknown` (exit 2). They set `coverage_evidence.status` to `partial`; pass `--online` to check them. Missing or stale indexes for those four ecosystems still report errors (`unknown`).
 
 ### Noninteractive, CI, and GitHub Action
 
@@ -196,10 +196,10 @@ Print a setup snippet to paste. Each uses this executable's full path and state 
 ## vorda watch
 
 ```text
-Usage: vorda watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--machine | --root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online]
+Usage: vorda watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--machine | --root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online] [--no-db-refresh]
 
 With no --root, scheduled scans check this machine (unless an earlier install saved a root). Pass --root DIR to schedule a project scan; later installs remember it until you pass --machine to switch back.
-Note: scheduled scans do not update the local advisory database. Schedule `vorda db update` yourself (for example daily); a missing database or one older than 72 hours (VORDA_ADVISORY_DB_MAX_AGE_HOURS changes this) makes each scheduled scan record unknown (exit 2), with no network fallback.
+The daily offline job on systemd and cron runs `vorda db update` before it scans. The download sends no package names. Use --no-db-refresh to turn off automatic updates. On other backends, and when automatic updates are off, run `vorda db update` daily. A missing or stale database makes scheduled scans record unknown (exit 2), with no network fallback.
 --offline-db schedules scans against the local advisory database with no network fallback.
 --online schedules scans that explicitly send package names and versions to OSV.dev.
 The chosen mode is saved in watch.json and passed explicitly to every backend's scan command (passing both is rejected). Without either flag, scheduled scans follow the config, environment, or CLI advisory default.

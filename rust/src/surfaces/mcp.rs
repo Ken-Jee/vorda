@@ -165,11 +165,17 @@ fn call_with_store(
                     return Err(Error::new("unknown arguments or invalid offline flag"));
                 }
                 let config_path = state.join("config.json");
-                let config = if config_path.exists() {
+                let mut config = if config_path.exists() {
                     read_json(&config_path)?
                 } else {
-                    json!({"roots":[crate::cli::resolved(&std::env::current_dir()?)?]})
+                    json!({})
                 };
+                if !config.is_object() {
+                    return Err(Error::new("local configuration must be an object"));
+                }
+                if config.get("roots").is_none() {
+                    config["roots"] = json!([crate::cli::resolved(&std::env::current_dir()?)?]);
+                }
                 let roots = args.get("roots").unwrap_or(&config["roots"]);
                 let roots = roots
                     .as_array()

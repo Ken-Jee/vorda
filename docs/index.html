@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src https://api.osv.dev https://api.first.org https://raw.githubusercontent.com; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0E17" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Live security advisories for MCP servers, coding agents, agent frameworks and model gateways, read in your browser from OSV.dev, FIRST EPSS and CISA's known-exploited list.">
+<title>Security alerts for AI agents and their tools · vorda</title>
+<link rel="preload" href="fonts/vorda-sans.woff2?v=2.0.27" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://api.osv.dev" crossorigin>
+<link rel="stylesheet" href="site.css">
+<script src="site.js" defer></script>
+<script src="alerts.js" defer></script>
+</head>
+<body data-page="index">
+<div class="in" id="page">
+  <h1>Security alerts for AI agents and their tools</h1>
+  <p class="sub">Read live from public advisory feeds each time you open this page. Your browser asks the feeds directly. The page has no trackers and stores nothing; like any website, the host and the feeds see your IP address.</p>
+
+  <section class="card" aria-labelledby="hero-num">
+    <p class="hero" id="hero-num"><span id="hero-count">–</span><span class="label" id="hero-unit">new advisories in the last 30 days</span></p>
+    <p class="quiet" id="hero-line" aria-live="polite">Checking OSV.dev…</p>
+    <svg class="area" id="hero-chart" viewBox="0 0 600 120" preserveAspectRatio="none" role="img" aria-label="New advisories per day over the last 30 days"></svg>
+    <div class="axis" aria-hidden="true"><span>30 days ago</span><span>Today</span></div>
+  </section>
+
+  <h2 id="kev-h">Known to be exploited</h2>
+  <p class="sub">AI and agent platforms on CISA's list of actively exploited flaws. Patch these first.</p>
+  <div class="rows" id="kev-list" aria-labelledby="kev-h" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
+
+  <h2 id="groups-h">Watched tools</h2>
+  <p class="sub">Pick a group to filter the list below. These counts are live. Search and Explore read a saved snapshot that is refreshed separately, so their counts can differ.</p>
+  <div class="mcs" id="groups" aria-labelledby="groups-h"></div>
+
+  <h2 id="new-h">Newest advisories</h2>
+  <p class="showing" id="showing" aria-live="polite" hidden></p>
+  <div class="rows" id="adv-list" aria-labelledby="new-h" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
+  <div class="more-btn" id="more-wrap" hidden><button class="b" type="button" id="more">Show more</button></div>
+
+  <h2 id="src-h">Where this comes from</h2>
+  <section class="card receipt-card" aria-labelledby="src-h">
+    <dl class="receipt" id="sources">
+      <dt>OSV.dev</dt><dd id="src-osv">Checking…</dd>
+      <dt>FIRST EPSS</dt><dd id="src-epss">Waiting for advisories…</dd>
+      <dt>CISA KEV</dt><dd id="src-kev">Checking…</dd>
+    </dl>
+    <div class="summary">
+      <p class="label">What this page can and can't tell you</p>
+      <p>This page tracks a fixed watch list of popular agent tools, not your machines. A missing package is not proof it is safe.</p>
+      <p>Because CISA's site blocks reads from other web pages, this page uses the copy CISA publishes on GitHub. Its release date is shown above.</p>
+      <p>EPSS estimates the chance a flaw is exploited within 30 days. Brand-new flaws often have no score yet.</p>
+    </div>
+    <div class="foot">
+      <details class="toggle">
+        <summary><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>See the watch list</summary>
+        <ul class="watch" id="watch"></ul>
+      </details>
+    </div>
+  </section>
+
+  <h2 id="own-h">Check your own machines</h2>
+  <section class="card" aria-labelledby="own-h">
+    <p>vorda checks what is actually installed on your machine: OS packages, lockfiles, tools, browsers, and MCP servers. It runs locally with no account and no telemetry. This command checks against the local offline database by default (npm, PyPI, crates.io, and Go); OS packages, tools, and browsers need --online (otherwise they are listed as not assessed; browsers still report unknown with no findings, online and offline).</p>
+    <code class="cmd">vorda scan --root ~/projects --os-packages --tools --browsers</code>
+    <p><a class="ul" href="https://github.com/Ken-Jee/vorda#install">How to install vorda</a></p>
+  </section>
+</div>
+</body>
+</html>

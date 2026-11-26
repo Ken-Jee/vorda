@@ -198,8 +198,8 @@ fn snapshot_read(args: &[String]) -> Result<i32> {
     Ok(code)
 }
 
-const SETUP: &str = "No local offline advisory database found. Vorda scans offline by default and never falls back to the network automatically.\n\nThe offline advisory database covers npm, PyPI, crates.io, and Go from any inventory source. Other ecosystems and network-only feeds are listed in not_assessed and do not make a scan unknown on their own; pass --online to check them.\n\nChoose an option:\n  1) Download the offline advisory database now (25 to 80 seconds, about 190 MB; package names never leave this machine)\n  2) Scan online this once (sends package names and versions to OSV.dev)\n  Enter) Cancel without scanning\n\nRun vorda setup to save an offline or online choice for future scans, or pass --online or --offline-db for a single scan.";
-const SETUP_UNATTENDED: &str = "No local offline advisory database found, and Vorda cannot prompt in noninteractive, CI, or Action runs (result: unknown, exit 2). It never falls back to the network. Run `vorda db update` first, or `vorda scan --online` once. Offline scans cover npm, PyPI, crates.io, and Go, and package names never leave this machine; other ecosystems and network-only feeds are listed in not_assessed instead of making a scan unknown on their own, and --online checks them.";
+const SETUP: &str = "No local offline advisory database found. An offline scan without the database reports unknown. Vorda scans offline by default and never falls back to the network automatically.\n\nThe offline advisory database covers npm, PyPI, crates.io, and Go from any inventory source. Other ecosystems and network-only feeds are listed in not_assessed. Pass --online to check them.\n\nChoose an option:\n  1) Download the offline advisory database now (25 to 80 seconds, about 190 MB; package names never leave this machine)\n  2) Scan online this once (sends package names and versions to OSV.dev)\n  Enter) Cancel without scanning\n\nRun vorda setup to save an offline or online choice for future scans, or pass --online or --offline-db for a single scan.";
+const SETUP_UNATTENDED: &str = "No local offline advisory database found, and Vorda cannot prompt in noninteractive, CI, or Action runs (result: unknown, exit 2). It never falls back to the network. Run `vorda db update` first, or `vorda scan --online` once. Offline scans cover npm, PyPI, crates.io, and Go, and package names never leave this machine; other ecosystems and network-only feeds are listed in not_assessed. Pass --online to check them.";
 const SETUP_PROMPT: &str =
     "Select [1] download offline advisory database, [2] scan online once, or Enter to cancel: ";
 const SETUP_INVALID: &str = "No valid choice; no scan was run. Run vorda db update to download the offline advisory database.";
@@ -299,7 +299,7 @@ fn ask(prompt: &str) -> Result<String> {
     Ok(answer.trim().to_owned())
 }
 
-const SETUP_USAGE: &str = "Usage: vorda setup [--offline-db | --online] [--watch | --no-watch]\n\nChoose offline or online advisories, save the choice to config.json, download the local database when offline, optionally install scheduled machine scans, and run the first scan of this machine.\n\n  --offline-db  Use the local advisory database (default in a terminal; downloads OSV exports for npm, PyPI, crates.io and Go plus the CISA KEV list to ~/.cache/vorda/advisory-db, 25 to 80 seconds and about 190 MB; package names never leave this machine; other ecosystems and network-only feeds are listed as not assessed)\n  --online      Send package names and versions to OSV.dev on each scan and also check the feeds the offline database lacks\n  --watch       Install scheduled hourly and daily machine scans (vorda watch install --machine) without prompting\n  --no-watch    Skip scheduled machine scans without prompting\n\nIn a terminal without a mode flag, setup prompts for 1 (offline, default on Enter) or 2 (online); any other answer exits 64 without saving. Outside a terminal or in CI, pass --offline-db or --online or setup exits 64 without saving.\n\nThe choice is saved as \"advisories\": \"offline-db\" or \"advisories\": \"online\" in config.json in the state folder (keeping any other keys) and applies to later vorda scan, vorda check, vorda watch install and MCP check runs. Single-scan --online or --offline-db flags still win for that scan, and VORDA_ADVISORIES wins over config.json (setup prints a note if it is set to the other mode). Run vorda setup again anytime to change the saved choice.\n\nIn offline mode, setup runs vorda db update. If the download fails or any line is not updated, setup stops with exit 2 without scanning; the choice stays saved so you can run vorda db update and then vorda scan.\n\nWithout --watch or --no-watch, setup asks in a terminal whether to install scheduled hourly and daily machine scans via systemd, cron, launchd or Windows Task Scheduler (default no; only y or yes installs), and skips them outside a terminal. Scheduled offline scans do not refresh the local advisory database: run vorda db update daily (for example from your own scheduler), or scans go unknown once the database is more than 72 hours old.\n\nLast, setup runs vorda scan on this machine (OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under home), prints a reminder to run vorda dashboard, and exits with the scan's exit code (0 no known findings, 3 vulnerable, 2 unknown). Running bare vorda with no arguments in a terminal (outside CI) before any mode is set in config.json or VORDA_ADVISORIES starts setup automatically; vorda --help, -h and help always print help.";
+const SETUP_USAGE: &str = "Usage: vorda setup [--offline-db | --online] [--watch | --no-watch]\n\nChoose offline or online advisories, save the choice to config.json, download the local database when offline, optionally install scheduled machine scans, and run the first scan of this machine.\n\n  --offline-db  Use the local advisory database (default in a terminal; downloads OSV exports for npm, PyPI, crates.io and Go plus the CISA KEV list to ~/.cache/vorda/advisory-db, 25 to 80 seconds and about 190 MB; package names never leave this machine; other ecosystems and network-only feeds are listed as not assessed)\n  --online      Send package names and versions to OSV.dev on each scan and also check the feeds the offline database lacks\n  --watch       Install scheduled hourly and daily machine scans (vorda watch install --machine) without prompting\n  --no-watch    Skip scheduled machine scans without prompting\n\nIn a terminal without a mode flag, setup prompts for 1 (offline, default on Enter) or 2 (online); any other answer exits 64 without saving. Outside a terminal or in CI, pass --offline-db or --online or setup exits 64 without saving.\n\nThe choice is saved as \"advisories\": \"offline-db\" or \"advisories\": \"online\" in config.json in the state folder (keeping any other keys) and applies to later vorda scan, vorda check, vorda watch install and MCP check runs. Single-scan --online or --offline-db flags still win for that scan, and VORDA_ADVISORIES wins over config.json (setup prints a note if it is set to the other mode). Run vorda setup again anytime to change the saved choice.\n\nIn offline mode, setup runs vorda db update. If the download fails or any line is not updated, setup stops with exit 2 without scanning; the choice stays saved so you can run vorda db update and then vorda scan.\n\nWithout --watch or --no-watch, setup asks in a terminal whether to install scheduled hourly and daily machine scans via systemd, cron, launchd or Windows Task Scheduler (default no; only y or yes installs), and skips them outside a terminal. On systemd and cron, the daily offline schedule refreshes the local advisory database by default. On other backends or after an install with --no-db-refresh, run vorda db update daily.\n\nLast, setup runs vorda scan on this machine (OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under home), prints a reminder to run vorda dashboard, and exits with the scan's exit code (0 no known findings, 3 vulnerable, 2 unknown). Running bare vorda with no arguments in a terminal (outside CI) before any mode is set in config.json or VORDA_ADVISORIES starts setup automatically; vorda --help, -h and help always print help.";
 const SETUP_MODE: &str = "Choose how Vorda checks for advisories. Offline is the default so your package names never leave this machine.\n\n  1) Offline advisory database (default): downloads OSV exports for npm, PyPI, crates.io and Go plus the CISA KEV list to ~/.cache/vorda/advisory-db (25 to 80 seconds, about 190 MB). Package names never leave this machine; other ecosystems and network-only feeds are listed as not assessed.\n  2) Online advisories: each scan sends package names and versions to OSV.dev and also checks the feeds the offline database lacks.\n\nYour choice is saved for later scans. Run vorda setup again anytime to change it.";
 const SETUP_MODE_PROMPT: &str = "Choose advisory mode [1/2, Enter for 1]: ";
 const SETUP_MODE_INVALID: &str =
@@ -312,7 +312,7 @@ const SETUP_ENV_OVERRIDES: &str = "Note: VORDA_ADVISORIES is set to the other mo
 const SETUP_DB_FAILED: &str = "Offline advisory database update did not complete; offline mode stays saved and no scan was run. Run vorda db update and then vorda scan.";
 const SETUP_WATCH_PROMPT: &str =
     "Install scheduled hourly and daily scans of this machine? [y/N]: ";
-const SETUP_WATCH_OFFLINE_NOTE: &str = "Note: scheduled scans do not refresh the local advisory database. Run vorda db update daily (for example from your own scheduler), or scans go unknown once the database is more than 72 hours old.";
+const SETUP_WATCH_OFFLINE_NOTE: &str = "Note: systemd and cron refresh the offline database before the daily scan. For other schedulers, run vorda db update daily.";
 const SETUP_WATCH_DONE: &str = "Scheduled hourly and daily machine scans are installed.";
 const SETUP_SCAN_START: &str = "Starting the first scan of this machine (OS packages, tools, browsers, installed apps (Windows only), and project lockfiles under home)...";
 const SETUP_DASHBOARD: &str = "Run vorda dashboard to see the results in the local web dashboard.";
@@ -906,7 +906,22 @@ fn summary(command: &str, result: &Value) -> String {
     errors.extend(array(&result["delivery_errors"]).into_iter().map(|e| {
         json!({"source": format!("delivery to {}", e["channel"].as_str().unwrap_or("?")), "error": e["error"]})
     }));
-    let checked = plural(array(&result["packages"]).len(), "package", "packages");
+    let found = array(&result["packages"]).len();
+    let unchecked: Vec<(&String, u64)> = result["ecosystems"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(e, c)| Some((e, c["not_assessed"].as_u64().filter(|n| *n > 0)?)))
+        .collect();
+    let unassessed: u64 = unchecked.iter().map(|(_, n)| n).sum();
+    let checked = match unassessed {
+        0 => format!("{} checked", plural(found, "package", "packages")),
+        n => format!(
+            "{} of {} checked, {n} not assessed",
+            (found as u64).saturating_sub(n),
+            plural(found, "package", "packages")
+        ),
+    };
     let cwd = std::env::current_dir().unwrap_or_default();
     // One line per package version, however many lockfiles list it. The key is the whole
     // package manager, name and version; the cut-short label is for display only.
@@ -972,7 +987,7 @@ fn summary(command: &str, result: &Value) -> String {
         .iter()
         .map(|note| format!("Experimental: {note}\n"))
         .collect();
-    out.push_str(&format!("Vorda {command}: {status}, {checked} checked\n"));
+    out.push_str(&format!("Vorda {command}: {status}, {checked}\n"));
     if result["machine"] == true {
         let skipped = array(&result["coverage_evidence"]["observations"])
             .iter()
@@ -994,6 +1009,21 @@ fn summary(command: &str, result: &Value) -> String {
     }
     if result["advisory_source"] == "offline-db" {
         out.push_str("Advisories: local offline database (no network); not ranked by EPSS exploit-likelihood score (online scans fetch it).\n");
+    }
+    if !unchecked.is_empty() {
+        let list: Vec<_> = unchecked
+            .iter()
+            .map(|(e, n)| format!("{e} ({n})"))
+            .collect();
+        out.push_str(&format!(
+            "Not assessed: {}.{}\n",
+            list.join(", "),
+            if result["advisory_source"] == "offline-db" {
+                " --online checks ecosystems the offline database does not cover."
+            } else {
+                ""
+            }
+        ));
     }
     let checked_any = !array(&result["packages"]).is_empty();
     match status {
@@ -1643,6 +1673,47 @@ pub fn assess(options: &ScanOptions, store: &Store) -> Result<Assessment> {
         }
         error
     }));
+    // A project you name is unknown, not clean, while some of its lockfile packages were never
+    // checked. Machine scans, inventory files, images and lockfiles in test or example folders
+    // below the root only list them under not_assessed; errors already make a scan unknown.
+    if !options.inventory.roots.is_empty()
+        && !options.inventory.machine
+        && !options.offline
+        && all_errors.is_empty()
+    {
+        let checked = strings(&result["covered"]);
+        let named = options
+            .inventory
+            .roots
+            .iter()
+            .map(|r| input::absolute(r))
+            .collect::<Result<Vec<_>>>()?;
+        let mut unchecked = BTreeSet::new();
+        for p in &packages {
+            let path = Path::new(&p.path);
+            let asset = asset(p)?;
+            if p.extra.get("origin") == Some(&json!("project"))
+                && named
+                    .iter()
+                    .any(|r| path.starts_with(r) && !scanner::inventory::test_data(path, r))
+                && !checked.contains(&asset)
+            {
+                unchecked.insert(asset);
+            }
+        }
+        if !unchecked.is_empty() {
+            let sources: Vec<_> = array(&result["not_assessed"])
+                .iter()
+                .filter_map(|n| n["source"].as_str().map(str::to_owned))
+                .collect();
+            all_errors.push(json!({"source":"not-assessed","not_covered":true,"error":format!(
+                "{} in the named project not assessed ({}), so a named project is unknown, not clean{}",
+                plural(unchecked.len(), "lockfile package", "lockfile packages"),
+                sources.join(", "),
+                if offline_db { "; pass --online to check ecosystems the offline database does not cover" } else { "" }
+            )}));
+        }
+    }
     result["errors"] = json!(all_errors);
     let mut health = std::collections::BTreeMap::new();
     for error in &all_errors {
@@ -1809,8 +1880,10 @@ pub fn assess(options: &ScanOptions, store: &Store) -> Result<Assessment> {
         })
         .collect::<Result<Vec<_>>>()?;
     result["seconds"] = json!((start.elapsed().as_secs_f64() * 1000.0).round() / 1000.0);
-    // Findings win over any error. Without findings, any file or entry not checked (even a
-    // named gap, see `not_covered`) leaves the result unknown: it could hide a vulnerable package.
+    // Findings win over any error. Without findings, any error leaves the result unknown, including
+    // a file or entry not checked (`not_covered`) and a named project's unassessed lockfile
+    // packages: each could hide a vulnerable package. What a machine scan or an inventory file
+    // only lists under not_assessed leaves coverage partial, not the result unknown.
     result["status"] = json!(if !array(&result["findings"]).is_empty() {
         "vulnerable"
     } else if options.offline || !all_errors.is_empty() {

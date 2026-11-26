@@ -151,6 +151,93 @@ fn errors(result: &Value) -> String {
 }
 
 #[test]
+fn a_named_project_is_unknown_while_its_lockfile_packages_were_never_checked() {
+    let w = world(&lock(&[("example", "1.2.3")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    fs::write(
+        w.root.join("Gemfile.lock"),
+        "GEM\n  specs:\n    rack (2.0.0)\n",
+    )
+    .unwrap();
+    // A finding anywhere still wins.
+    let (code, result) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(
+        (code, &result["status"]),
+        (3, &json!("vulnerable")),
+        "{result}"
+    );
+
+    fs::remove_file(w.root.join("package-lock.json")).unwrap();
+    let root = w.root.to_string_lossy().into_owned();
+    let (code, out, _) = vorda(&w, &["scan", "--offline-db", &root], &[]);
+    assert_eq!(code, 2, "{out}");
+    assert!(out.starts_with("Vorda scan: unknown"), "{out}");
+    assert!(
+        out.lines()
+            .any(|l| l.contains("offline-db:RubyGems") && l.contains("--online")),
+        "{out}"
+    );
+
+    // The same file under home in a bare machine scan only lists what was not assessed.
+    let home = w.root.parent().unwrap().to_string_lossy().into_owned();
+    let (_, out, err) = vorda(
+        &w,
+        &["scan", "--offline-db", "--json"],
+        &[("HOME", &home), ("USERPROFILE", &home)],
+    );
+    let result: Value = serde_json::from_str(&out).unwrap_or_else(|_| panic!("{out}\n{err}"));
+    assert_eq!(result["machine"], true, "{result}");
+    assert!(!errors(&result).contains("named project"), "{result}");
+    assert!(
+        result["not_assessed"].to_string().contains("rack 2.0.0"),
+        "{result}"
+    );
+
+    // A lockfile in a test or example folder below the root is only listed as not assessed.
+    fs::create_dir_all(w.root.join("tests/fixture")).unwrap();
+    fs::rename(
+        w.root.join("Gemfile.lock"),
+        w.root.join("tests/fixture/Gemfile.lock"),
+    )
+    .unwrap();
+    fs::write(
+        w.root.join("package-lock.json"),
+        lock(&[("other", "2.0.0")]),
+    )
+    .unwrap();
+    let (code, result) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(
+        (code, &result["status"]),
+        (0, &json!("no-known-findings")),
+        "{result}"
+    );
+    assert!(
+        result["not_assessed"].to_string().contains("rack 2.0.0"),
+        "{result}"
+    );
+
+    // An inventory file names no project, even when its paths sit under the working folder.
+    let file = w.state.with_extension("inventory.json");
+    let lockfile = std::env::current_dir().unwrap().join("Gemfile.lock");
+    fs::write(
+        &file,
+        json!({"status":"complete","observed":vorda::store::now(),"packages":[
+            {"name":"rack","version":"2.0.0","ecosystem":"RubyGems","path":lockfile,"scope":"installed","origin":"project"}
+        ]})
+        .to_string(),
+    )
+    .unwrap();
+    let file = file.to_string_lossy().into_owned();
+    let (code, out, err) = vorda(
+        &w,
+        &["scan", "--offline-db", "--inventory-file", &file],
+        &[],
+    );
+    assert_eq!(code, 0, "{out}{err}");
+}
+
+#[test]
 fn a_missing_kev_list_asks_for_db_update() {
     let w = world(&lock(&[("example", "1.2.3")]));
     let missing = "the KEV list is not in the local advisory database; run `vorda db update`";
@@ -194,17 +281,18 @@ fn mcp_check_uses_local_database_and_accepts_explicit_advisory_modes() {
     let w = world(&lock(&[("example", "1.2.3")]));
     publish(&w, "npm", &zip_of(&good_npm()));
     assert_eq!(update(&w).0, 0);
-    fs::create_dir_all(&w.state).unwrap();
-    fs::write(
-        w.state.join("config.json"),
-        json!({"roots":[w.root]}).to_string(),
-    )
-    .unwrap();
+    // Setup saves the offline choice even when its network refresh fails.
+    let (code, _, error) = vorda(&w, &["setup", "--offline-db", "--no-watch"], &[]);
+    assert_eq!(code, 2, "{error}");
+    let config: Value =
+        serde_json::from_slice(&fs::read(w.state.join("config.json")).unwrap()).unwrap();
+    assert_eq!(config, json!({"advisories":"offline-db"}));
     let call = |args: Value, configured: &str| {
         let mut child = Command::new(env!("CARGO_BIN_EXE_vorda"))
             .arg("--state")
             .arg(&w.state)
             .arg("mcp")
+            .current_dir(&w.root)
             .env("VORDA_ADVISORY_DB_DIR", &w.db)
             .env("VORDA_ADVISORIES", configured)
             .env("HTTPS_PROXY", DEAD)
@@ -223,9 +311,12 @@ fn mcp_check_uses_local_database_and_accepts_explicit_advisory_modes() {
     };
     for args in [json!({}), json!({"offline_db":true})] {
         let response = call(args, "");
-        let result: Value =
-            serde_json::from_str(response["result"]["content"][0]["text"].as_str().unwrap())
-                .unwrap();
+        let result: Value = serde_json::from_str(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap_or_else(|| panic!("MCP check after setup failed: {response}")),
+        )
+        .unwrap();
         assert_eq!(result["advisory_source"], "offline-db");
         assert_eq!(result["status"], "vulnerable", "{result}");
         assert!(result["findings"]
@@ -1531,6 +1622,59 @@ fn an_advisory_title_is_shown_but_a_new_title_never_reports_the_finding_as_chang
 }
 
 #[test]
+fn every_dashboard_page_shows_the_saved_partial_coverage() {
+    use vorda::surfaces::dashboard::{data, views};
+    let w = world(&lock(&[("other", "2.0.0")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let pages = |w: &World| {
+        let snapshot = data::snapshot(&w.state, vorda::store::now(), None).unwrap();
+        let page =
+            |screen, filter| views::render(&snapshot, screen, "", filter, "", "", false).unwrap();
+        [
+            page("overview", ""),
+            page("findings", "coverage"),
+            page("inventory", ""),
+        ]
+    };
+    assert_eq!(scan_json(&w, &["--offline-db"], &[]).0, 0);
+    let [overview, coverage, inventory] = pages(&w);
+    assert!(overview.contains("Nothing needs attention"), "{overview}");
+    assert!(coverage.contains("Coverage is complete"), "{coverage}");
+    assert!(inventory.contains("Coverage complete"), "{inventory}");
+
+    // A named project with an unchecked lockfile is unknown, so the gap comes from an inventory file.
+    let file = w.root.join("inventory.json");
+    let package = |name: &str, ecosystem: &str| json!({"name":name,"version":"2.0.0","ecosystem":ecosystem,"path":"inventory","scope":"installed"});
+    let observed = vorda::store::now();
+    fs::write(
+        &file,
+        json!({"status":"complete","observed":observed,"packages":[package("other", "npm"), package("rack", "RubyGems")]})
+            .to_string(),
+    )
+    .unwrap();
+    let file = file.to_string_lossy().into_owned();
+    assert_eq!(
+        scan_json(&w, &["--offline-db", "--inventory-file", &file], &[]).0,
+        0
+    );
+    let [overview, coverage, inventory] = pages(&w);
+    let reason = "1 package not assessed: offline-db:RubyGems";
+    assert!(
+        overview.contains("Scan coverage is incomplete"),
+        "{overview}"
+    );
+    for page in [&overview, &coverage, &inventory] {
+        assert!(page.contains(reason), "{page}");
+    }
+    assert!(!coverage.contains("Coverage is complete"), "{coverage}");
+    assert!(
+        !inventory.contains("Coverage complete") && inventory.contains("Not assessed (1)"),
+        "{inventory}"
+    );
+}
+
+#[test]
 fn an_excluded_scan_never_closes_full_scan_findings_and_a_missed_exclude_is_only_warned() {
     let w = world(&lock(&[("example", "1.2.3")]));
     publish(&w, "npm", &zip_of(&good_npm()));
@@ -1611,6 +1755,45 @@ fn an_excluded_scan_never_closes_full_scan_findings_and_a_missed_exclude_is_only
 }
 
 #[test]
+fn the_summary_counts_packages_checked_not_packages_found() {
+    let w = world(&lock(&[("other", "2.0.0")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let root = w.root.to_string_lossy().into_owned();
+    let text = || vorda(&w, &["scan", "--offline-db", "--root", &root], &[]).1;
+    assert!(
+        text().starts_with("Vorda scan: no-known-findings, 1 package checked\n"),
+        "{}",
+        text()
+    );
+
+    fs::write(
+        w.root.join("Gemfile.lock"),
+        "GEM\n  specs:\n    rack (2.0.0)\n",
+    )
+    .unwrap();
+    let out = text();
+    assert!(
+        out.starts_with("Vorda scan: unknown, 1 of 2 packages checked, 1 not assessed\n"),
+        "{out}"
+    );
+    assert!(
+        out.lines()
+            .any(|l| l.starts_with("Not assessed: RubyGems (1). --online")),
+        "{out}"
+    );
+    let (_, result) = scan_json(&w, &["--offline-db"], &[]);
+    assert_eq!(
+        result["ecosystems"],
+        json!({
+            "RubyGems": {"found": 1, "assessed": 0, "not_assessed": 1},
+            "npm": {"found": 1, "assessed": 1, "not_assessed": 0},
+        }),
+        "{result}"
+    );
+}
+
+#[test]
 fn what_offline_mode_cannot_assess_is_listed_and_never_makes_the_scan_unknown() {
     let w = world(&lock(&[("other", "2.0.0")]));
     publish(&w, "npm", &zip_of(&good_npm()));
@@ -1658,6 +1841,11 @@ fn what_offline_mode_cannot_assess_is_listed_and_never_makes_the_scan_unknown() 
     );
     // Nothing unassessed counts as checked, so saved findings are never retired by it.
     assert_eq!(result["coverage_evidence"]["status"], "partial");
+    assert_eq!(
+        result["ecosystems"]["Arch Linux"],
+        json!({"found": 1, "assessed": 0, "not_assessed": 1}),
+        "{result}"
+    );
 
     let root = w.root.to_string_lossy().into_owned();
     let (code, out, _) = vorda(
@@ -1675,4 +1863,163 @@ fn what_offline_mode_cannot_assess_is_listed_and_never_makes_the_scan_unknown() 
     assert_eq!(code, 0, "{out}");
     assert!(out.contains("(4):\n"), "{out}");
     assert!(out.contains("\n  coverage:Homebrew: "), "{out}");
+}
+
+#[test]
+fn a_strict_action_fails_and_skips_upload_when_an_ecosystem_was_never_checked() {
+    let w = world(&lock(&[("other", "2.0.0")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let (sarif, outputs) = (
+        w.state.with_extension("sarif"),
+        w.state.with_extension("out"),
+    );
+    let action = |fail: &str| {
+        fs::write(&outputs, "").unwrap();
+        let root = w.root.to_string_lossy().into_owned();
+        let (code, out, err) = vorda(
+            &w,
+            &["action-scan"],
+            &[
+                ("VORDA_PATH", &format!("'{root}'")),
+                ("VORDA_ADVISORY_INPUT", "offline-db"),
+                ("VORDA_SARIF", &sarif.to_string_lossy()),
+                ("GITHUB_OUTPUT", &outputs.to_string_lossy()),
+                ("VORDA_FAIL", fail),
+            ],
+        );
+        (code, out + &err, fs::read_to_string(&outputs).unwrap())
+    };
+
+    let (code, out, written) = action("true");
+    assert_eq!(
+        (code, written.as_str()),
+        (
+            0,
+            "status=no-known-findings\nfindings=0\ncoverage=complete\nnot-assessed=0\n"
+        ),
+        "{out}"
+    );
+
+    fs::write(
+        w.root.join("Gemfile.lock"),
+        "GEM\n  specs:\n    rack (2.0.0)\n",
+    )
+    .unwrap();
+    // A named project with packages nothing checked is unknown; the annotation names the ecosystem.
+    let (code, out, written) = action("true");
+    assert_eq!(code, 2, "{out}");
+    assert!(
+        written.starts_with("status=unknown\n")
+            && written.contains("coverage=partial\nnot-assessed=1\n"),
+        "{written}"
+    );
+    assert!(
+        out.lines()
+            .any(|l| l.starts_with("::error title=vorda::Coverage partial")
+                && l.contains("offline-db:RubyGems")
+                && l.contains("advisories: online")),
+        "{out}"
+    );
+
+    let (code, out, written) = action("false");
+    assert_eq!(code, 0, "{out}");
+    assert!(written.contains("coverage=partial\n"), "{written}");
+    assert!(out.contains("::warning title=vorda::"), "{out}");
+}
+
+/// The exit-code truth table in README.md, docs/status.md and docs/github-action.md, one row per case.
+#[test]
+fn every_exit_code_row_holds_for_the_cli_and_the_strict_action() {
+    let w = world(&lock(&[("other", "2.0.0")]));
+    publish(&w, "npm", &zip_of(&good_npm()));
+    assert_eq!(update(&w).0, 0);
+    let root = w.root.to_string_lossy().into_owned();
+    let (sarif, outputs) = (
+        w.state.with_extension("sarif"),
+        w.state.with_extension("out"),
+    );
+    let (lockfile, gemfile, requirements, manifest) = (
+        w.root.join("package-lock.json"),
+        w.root.join("Gemfile.lock"),
+        w.root.join("requirements.txt"),
+        w.root.join("package.json"),
+    );
+    let (clean, vulnerable) = (lock(&[("other", "2.0.0")]), lock(&[("example", "1.2.3")]));
+    let empty = lock(&[]);
+    let gems = Some((&gemfile, "GEM\n  specs:\n    rack (2.0.0)\n"));
+    let unpinned = Some((&requirements, "requests\n"));
+    let no_dependencies = Some((&manifest, "{\"name\":\"empty\"}"));
+    // case, package-lock.json, second file -> scan exit, status, coverage_evidence.status,
+    // strict Action exit, Action coverage output, an annotation the strict Action prints
+    #[rustfmt::skip]
+    let rows = [
+        ("clean", Some(clean.as_str()), None, 0, "no-known-findings", "complete", 0, "complete", "vorda: no-known-findings"),
+        ("finding", Some(vulnerable.as_str()), None, 3, "vulnerable", "complete", 1, "complete", "vorda: vulnerable"),
+        ("finding with gaps", Some(vulnerable.as_str()), gems, 3, "vulnerable", "partial", 1, "partial", "::error title=vorda::Coverage partial"),
+        ("finding with an unchecked file", Some(vulnerable.as_str()), unpinned, 3, "vulnerable", "partial", 1, "partial", "::warning title=vorda::Findings reported, but some files"),
+        ("not assessed", Some(clean.as_str()), gems, 2, "unknown", "partial", 2, "partial", "::error title=vorda::Coverage partial"),
+        ("error", Some("{"), None, 2, "unknown", "partial", 2, "partial", "::error title=vorda::Scan incomplete"),
+        ("nothing to scan", None, None, 0, "no-known-findings", "partial", 2, "partial", "::error title=vorda::Nothing to scan"),
+        // Not a table row: a lockfile that lists no packages was read, so it is not "nothing to scan".
+        ("empty lockfile", Some(empty.as_str()), no_dependencies, 0, "no-known-findings", "complete", 0, "complete", "vorda: no-known-findings"),
+    ];
+    for (case, npm_lock, other, exit, status, evidence, action_exit, coverage, note) in rows {
+        for path in [&lockfile, &gemfile, &requirements, &manifest] {
+            let _ = fs::remove_file(path);
+        }
+        if let Some(text) = npm_lock {
+            fs::write(&lockfile, text).unwrap();
+        }
+        if let Some((path, text)) = other {
+            fs::write(path, text).unwrap();
+        }
+        let (code, result) = scan_json(&w, &["--offline-db"], &[]);
+        assert_eq!(
+            (
+                code,
+                result["status"].as_str(),
+                result["coverage_evidence"]["status"].as_str()
+            ),
+            (exit, Some(status), Some(evidence)),
+            "{case}: {result}"
+        );
+        for strict in ["true", "false"] {
+            fs::write(&outputs, "").unwrap();
+            let (code, out, err) = vorda(
+                &w,
+                &["action-scan"],
+                &[
+                    ("VORDA_PATH", &format!("'{root}'")),
+                    ("VORDA_ADVISORY_INPUT", "offline-db"),
+                    ("VORDA_SARIF", &sarif.to_string_lossy()),
+                    ("GITHUB_OUTPUT", &outputs.to_string_lossy()),
+                    ("VORDA_FAIL", strict),
+                ],
+            );
+            let written = fs::read_to_string(&outputs).unwrap();
+            // Report only passes every row.
+            let expected = if strict == "true" { action_exit } else { 0 };
+            assert_eq!(code, expected, "{case} strict={strict}: {out}{err}");
+            assert!(
+                written.starts_with(&format!("status={status}\n"))
+                    && written.contains(&format!("coverage={coverage}\n")),
+                "{case} strict={strict}: {written}"
+            );
+            if strict == "false" {
+                assert_eq!(
+                    out.contains("::warning title=vorda::"),
+                    coverage == "partial",
+                    "{case} report only: {out}"
+                );
+            } else {
+                assert!(out.contains(note), "{case}: {out}");
+                assert_eq!(
+                    out.contains("Nothing to scan"),
+                    case == "nothing to scan",
+                    "{case}: {out}"
+                );
+            }
+        }
+    }
 }

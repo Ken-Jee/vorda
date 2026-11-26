@@ -157,7 +157,7 @@ pub fn run(args: &[String], state: &Path) -> Result<i32> {
             "repair"=>HELP_REPAIR,
             "repair-mcp"=>"repair-mcp --config FILE --agent NAME",
             "connect"=>HELP_CONNECT,
-            "watch"=>"watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--machine | --root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online]\n\nWith no --root, scheduled scans check this machine (unless an earlier install saved a root). Pass --root DIR to schedule a project scan; later installs remember it until you pass --machine to switch back.\nNote: scheduled scans do not update the local advisory database. Schedule `vorda db update` yourself (for example daily); a missing database or one older than 72 hours (VORDA_ADVISORY_DB_MAX_AGE_HOURS changes this) makes each scheduled scan record unknown (exit 2), with no network fallback.\n--offline-db schedules scans against the local advisory database with no network fallback.\n--online schedules scans that explicitly send package names and versions to OSV.dev.\nThe chosen mode is saved in watch.json and passed explicitly to every backend's scan command (passing both is rejected). Without either flag, scheduled scans follow the config, environment, or CLI advisory default.",
+            "watch"=>"watch {install,uninstall,status} [--backend {systemd,cron,launchd,windows}] [--machine | --root DIR] [--os-packages] [--tools] [--browsers] [--offline-db | --online] [--no-db-refresh]\n\nWith no --root, scheduled scans check this machine (unless an earlier install saved a root). Pass --root DIR to schedule a project scan; later installs remember it until you pass --machine to switch back.\nThe daily offline job on systemd and cron runs `vorda db update` before it scans. The download sends no package names. Use --no-db-refresh to turn off automatic updates. On other backends, and when automatic updates are off, run `vorda db update` daily. A missing or stale database makes scheduled scans record unknown (exit 2), with no network fallback.\n--offline-db schedules scans against the local advisory database with no network fallback.\n--online schedules scans that explicitly send package names and versions to OSV.dev.\nThe chosen mode is saved in watch.json and passed explicitly to every backend's scan command (passing both is rejected). Without either flag, scheduled scans follow the config, environment, or CLI advisory default.",
             "fix"=>HELP_FIX,
             "hook"=>HELP_HOOK,
             "snippet"=>HELP_SNIPPET,
@@ -414,6 +414,7 @@ pub fn run(args: &[String], state: &Path) -> Result<i32> {
                     "offline-db",
                     "online",
                     "machine",
+                    "no-db-refresh",
                 ],
                 &["backend", "root"],
             )?

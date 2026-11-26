@@ -216,7 +216,7 @@ fn action_without_database_reports_unknown_even_when_fail_on_findings_is_false()
         assert_eq!(error["status"], "unknown");
         assert_eq!(
             std::fs::read_to_string(&outputs).unwrap(),
-            "status=unknown\nfindings=0\n"
+            "status=unknown\nfindings=0\ncoverage=partial\nnot-assessed=0\n"
         );
         let report: Value = serde_json::from_slice(&std::fs::read(&sarif).unwrap()).unwrap();
         assert_eq!(report["runs"][0]["results"], serde_json::json!([]));

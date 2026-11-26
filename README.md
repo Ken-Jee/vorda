@@ -37,14 +37,20 @@ Findings saved locally: vorda dashboard (browser) or vorda mail list --reader NA
 Full result: vorda scan --json
 ```
 
-Exit codes for `vorda scan` and `vorda check`:
+What each result means for `vorda scan`, `vorda check` and the GitHub Action:
 
-- `0`: no known findings in what was checked (including a folder with no dependency files at all, which prints a "Nothing to scan" notice)
-- `3`: vulnerabilities found, even when some files were not checked (those gaps are listed too)
-- `2`: no findings, but something was not read or checked (never reported as clean)
-- `64`: usage error
+| Result | Example | `vorda scan` exit | `status` | Action with `fail-on-findings: 'true'` | Action `coverage`, SARIF uploaded |
+| --- | --- | --- | --- | --- | --- |
+| Clean | every package checked, none vulnerable | 0 | `no-known-findings` | passes | `complete`, yes |
+| Finding | a vulnerable package | 3 | `vulnerable` | fails (exit 1) | `complete`, yes |
+| Finding with gaps | a vulnerable package, plus a package or file that was not checked | 3 | `vulnerable` | fails (exit 1) | `partial`, no |
+| Not assessed | a `Gemfile.lock` in the project you scan, under the offline database | 2 | `unknown` | fails (exit 2) | `partial`, no |
+| Error | a lockfile Vorda cannot read, or a failed lookup | 2 | `unknown` | fails (exit 2) | `partial`, no |
+| Nothing to scan | no dependency file Vorda recognizes (prints a "Nothing to scan" notice) | 0 | `no-known-findings` | fails (exit 2) | `partial`, no |
 
-If Vorda finds no vulnerabilities but cannot read or check something, it reports `unknown` and names what failed or was skipped. Use `--exclude PATH` to leave a path out on purpose; excluded paths are listed in the output.
+Usage errors exit 64 everywhere, and the Action fails on them whatever `fail-on-findings` is set to. A machine scan (`vorda scan` with no path) lists packages it could not check under `not_assessed` and marks coverage partial, but does not report `unknown` for them, so it exits 0 when nothing is found. With `fail-on-findings: 'false'`, the Action passes in every row and logs a warning for the unknown and partial ones.
+
+If Vorda finds no vulnerabilities but cannot read or check a file or entry, a lookup fails, or a lockfile package in a project you name was not checked, it reports `unknown` and names what failed or was skipped. Use `--exclude PATH` to leave a path out on purpose; excluded paths are listed in the output.
 
 ## Dashboard, agents and CI
 

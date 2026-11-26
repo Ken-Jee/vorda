@@ -134,15 +134,23 @@ fn actual_agentbom_fixture_is_scanned_without_execution() {
     let fixture = Fixture::new();
     load_agent_fixture(&fixture.0);
     let expected: Value = serde_json::from_str(include_str!("fixtures/agentbom.json")).unwrap();
-    let bom = scanner::agentbom::collect(
+    let system = fixture.0.join("system");
+    fs::create_dir(&system).unwrap();
+    let bom = scanner::agentbom::collect_under(
+        &system,
         &fixture.0.join("home"),
         &[fixture.0.join("proj")],
         "fixture",
         true,
-        true,
     )
     .unwrap();
     assert!(bom.errors.is_empty(), "{:?}", bom.errors);
+    let root = fixture.0.to_string_lossy();
+    assert!(
+        bom.read_files.iter().all(|f| f.starts_with(&*root)),
+        "{:?}",
+        bom.read_files
+    );
     let raw = serde_json::to_string(&bom).unwrap();
     for credential in [
         "Zq8vK2mX9pL4rT7w",

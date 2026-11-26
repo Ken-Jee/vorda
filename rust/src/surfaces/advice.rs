@@ -112,6 +112,7 @@ fn strings(v: &Value) -> Vec<String> {
     }
 }
 pub fn fix_commands(store: &Store) -> Result<Value> {
+    let offline = crate::scanner::osvdb::configured(&store.root)?;
     let mut groups: BTreeMap<String, Value> = BTreeMap::new();
     let mut statement = store
         .db
@@ -148,9 +149,23 @@ pub fn fix_commands(store: &Store) -> Result<Value> {
     let mut out = vec![];
     for mut finding in groups.into_values() {
         let p = finding["package"].clone();
+        let mut detail_note = None;
         if finding["detail_status"] == "deferred" && strings(&finding["fixed"]).is_empty() {
             let urls = strings(&finding["source_url"]);
-            if let Some(url) = urls.first() {
+            let url = urls
+                .first()
+                .and_then(|raw| reqwest::Url::parse(raw).ok())
+                .filter(|url| {
+                    url.scheme() == "https"
+                        && url.host_str() == Some("api.osv.dev")
+                        && url.port().is_none()
+                        && url.username().is_empty()
+                        && url.password().is_none()
+                        && url.path().starts_with("/v1/vulns/")
+                });
+            if offline {
+                detail_note = Some("Advisory detail was not fetched in offline mode");
+            } else if let Some(url) = url {
                 let fetch = (|| -> crate::Result<Value> {
                     use std::io::Read;
                     let client = reqwest::blocking::Client::builder()
@@ -193,6 +208,8 @@ pub fn fix_commands(store: &Store) -> Result<Value> {
                     versions.dedup();
                     finding["fixed"] = json!(versions);
                 }
+            } else {
+                detail_note = Some("Advisory detail source is not allowed");
             }
         }
         let versions: Vec<_> = strings(&finding["fixed"])
@@ -294,7 +311,11 @@ pub fn fix_commands(store: &Store) -> Result<Value> {
         } else {
             "Recheck after updating; resolver constraints or unreleased fixes can prevent remediation".into()
         };
-        out.push(json!({"package":p,"command":command,"fixed":versions,"verification":verification,"detail_status":finding.get("detail_status").unwrap_or(&json!("complete"))}));
+        let mut advice = json!({"package":p,"command":command,"fixed":versions,"verification":verification,"detail_status":finding.get("detail_status").unwrap_or(&json!("complete"))});
+        if let Some(note) = detail_note {
+            advice["detail_note"] = json!(note);
+        }
+        out.push(advice);
     }
     Ok(json!(out))
 }

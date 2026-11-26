@@ -24,7 +24,7 @@ inputs:
     description: 'online (sends package names and versions to OSV.dev) or offline-db (needs a local database). Empty uses VORDA_ADVISORIES, else offline-db.'
     default: ''
   fail-on-findings:
-    description: Fail the step when known vulnerabilities are found or the scan is unknown
+    description: Fail the step when known vulnerabilities are found or the scan is unknown or partial
     default: 'false'
 outputs:
   status:
@@ -33,6 +33,12 @@ outputs:
   findings:
     description: Number of findings
     value: ${{ steps.scan.outputs.findings }}
+  coverage:
+    description: complete, or partial when the scan is unknown, some packages were not assessed, a vulnerable scan left a file unchecked, or there was nothing to scan
+    value: ${{ steps.scan.outputs.coverage }}
+  not-assessed:
+    description: Number of packages not assessed
+    value: ${{ steps.scan.outputs.not-assessed }}
   sarif-file:
     description: Path of the SARIF report
     value: ${{ inputs.sarif-file }}
@@ -53,9 +59,9 @@ runs:
         VORDA_FAIL: ${{ inputs.fail-on-findings }}
         VORDA_ADVISORY_INPUT: ${{ inputs.advisories }}
       run: '"$RUNNER_TEMP/vorda-native-target/release/vorda" action-scan'
-    # A vulnerable scan uploads even when it failed the step. An unknown scan is not
-    # uploaded: its SARIF would close open alerts it never checked.
-    - if: ${{ !cancelled() && inputs.upload == 'true' && steps.scan.outputs.status != '' && steps.scan.outputs.status != 'unknown' }}
+    # A vulnerable scan uploads even when it failed the step. An unknown or partial scan is
+    # not uploaded: its SARIF would close open alerts it never checked.
+    - if: ${{ !cancelled() && inputs.upload == 'true' && steps.scan.outputs.coverage == 'complete' }}
       uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4.39.1
       with:
         sarif_file: ${{ inputs.sarif-file }}

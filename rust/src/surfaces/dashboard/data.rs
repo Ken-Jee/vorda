@@ -93,9 +93,27 @@ pub fn scan_state(last: &Value, now: f64, problem: bool) -> &str {
         "failed"
     } else if now - number(last, "finished") > 172800. {
         "stale"
+    } else if !not_assessed(last).1.is_empty() {
+        "partial"
     } else {
         "ok"
     }
+}
+/// How many packages a saved scan found but did not check, and the sources it names.
+pub fn not_assessed(last: &Value) -> (usize, Vec<String>) {
+    let list = last["not_assessed"]
+        .as_str()
+        .and_then(|text| serde_json::from_str(text).ok())
+        .unwrap_or_else(|| last["not_assessed"].clone());
+    let list = list.as_array().map(Vec::as_slice).unwrap_or_default();
+    (
+        list.iter().map(|n| a(n, "packages").len()).sum(),
+        list.iter()
+            .map(|n| s(n, "source").to_owned())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+    )
 }
 fn issue(t: &str, host: &str, key: &str, items: &[Value], seen: f64) -> Value {
     let sev = items

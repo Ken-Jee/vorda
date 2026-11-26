@@ -18,7 +18,7 @@ Start with the [README](../README.md), then [status and limits](status.md).
 - [Scan MCP servers, skills and agent tools](scan-mcp-servers-for-cves.md)
 - [Vulnerability alerts for AI coding agents](vulnerability-alerts-for-ai-agents.md)
 - [GitHub Action and SARIF](github-action.md)
-- [Live alerts page](alerts/index.html): a static page that reads OSV.dev, FIRST EPSS and
+- [Live alerts page](index.html): a static page that reads OSV.dev, FIRST EPSS and
   CISA's known-exploited list in your browser
 
 ## Results and inventory

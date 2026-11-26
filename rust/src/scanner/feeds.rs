@@ -534,12 +534,15 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
     let mut grouped: BTreeMap<(String, String, String), Vec<&Package>> = BTreeMap::new();
     // What Vorda cannot assess by design, by (source, reason): listed, never an error.
     let mut not_assessed = BTreeMap::<(String, String), Vec<String>>::new();
+    // The same packages by address in `packages`, for the per-ecosystem counts.
+    let mut skipped = BTreeSet::<*const Package>::new();
     for p in packages {
         if p.version.is_empty() || p.version == "unknown" {
             not_assessed
                 .entry(("coverage:version".into(), COPY_NO_VERSION.into()))
                 .or_default()
                 .push(p.name.clone());
+            skipped.insert(p);
             continue;
         }
         if mapped(&p.ecosystem) {
@@ -556,6 +559,7 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
                 .entry((format!("coverage:{}", p.ecosystem), COPY_NO_MAPPING.into()))
                 .or_default()
                 .push(format!("{} {}", p.name, p.version));
+            skipped.insert(p);
         }
     }
     let unique: Vec<_> = grouped.values().map(|p| p[0]).collect();
@@ -625,6 +629,15 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
                                 .entry((format!("offline-db:{}", p.ecosystem), why.to_owned()))
                                 .or_default()
                                 .push(label);
+                            skipped.extend(
+                                grouped[&(
+                                    p.ecosystem.clone(),
+                                    source_name(p).into(),
+                                    source_version(p).into(),
+                                )]
+                                    .iter()
+                                    .map(|p| *p as *const Package),
+                            );
                         } else {
                             unknown
                                 .entry((p.ecosystem.clone(), why.to_owned()))
@@ -904,6 +917,16 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
         e["not_assessed"] == true || string(e, "error").contains(super::osvdb::NEEDS_NETWORK)
     });
     for e in by_design {
+        // A browser gap names the browser's path; an Arch feed gap covers every Arch package.
+        skipped.extend(
+            packages
+                .iter()
+                .filter(|p| match e["package"].as_str() {
+                    Some(path) => p.ecosystem == "Chromium" && p.path == path,
+                    None => e["source"] == "arch" && p.ecosystem == "Arch Linux",
+                })
+                .map(|p| p as *const Package),
+        );
         not_assessed
             .entry((string(&e, "source").into(), string(&e, "error").into()))
             .or_default()
@@ -912,6 +935,21 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
     let not_assessed: Vec<_> = not_assessed
         .into_iter()
         .map(|((source, reason), packages)| json!({"source":source,"reason":reason,"packages":packages}))
+        .collect();
+    let mut ecosystems = BTreeMap::<&str, (usize, usize)>::new();
+    for p in packages {
+        let (found, skip) = ecosystems.entry(&p.ecosystem).or_default();
+        *found += 1;
+        *skip += usize::from(skipped.contains(&(p as *const Package)));
+    }
+    let ecosystems: Record = ecosystems
+        .into_iter()
+        .map(|(e, (found, skip))| {
+            (
+                e.to_owned(),
+                json!({"found":found,"assessed":found - skip,"not_assessed":skip}),
+            )
+        })
         .collect();
     for f in &mut findings {
         // An upstream version match on a binary an OS package owns: the distro may have
@@ -931,7 +969,7 @@ pub fn scan(packages: &[Package], fetch: &mut dyn FeedSource) -> Result<Record> 
         .collect();
     let cve_re = regex::Regex::new(r"CVE-\d{4}-\d+").unwrap();
     let notes:Vec<_>=enrichment.get("releases").map(|r|array(&r["feed"]["entry"]).iter().map(|e|json!({"title":e["title"]["$t"],"updated":e["updated"]["$t"],"cves":cve_re.find_iter(string(&e["content"],"$t")).map(|m|m.as_str()).collect::<BTreeSet<_>>()})).collect()).unwrap_or_default();
-    let mut result = json!({"findings":findings.into_values().collect::<Vec<_>>(),"audit":audit,"resolutions":resolutions,"covered":covered,"errors":errors,"sources":sources,"packages":packages,"not_assessed":not_assessed,"browser_fixed_version":enrichment.get("cft").map(|v|v["channels"]["Stable"]["version"].clone()).unwrap_or(Value::Null),"chrome_release_notes":notes});
+    let mut result = json!({"findings":findings.into_values().collect::<Vec<_>>(),"audit":audit,"resolutions":resolutions,"covered":covered,"errors":errors,"sources":sources,"packages":packages,"not_assessed":not_assessed,"ecosystems":ecosystems,"browser_fixed_version":enrichment.get("cft").map(|v|v["channels"]["Stable"]["version"].clone()).unwrap_or(Value::Null),"chrome_release_notes":notes});
     if fetch.local_db() {
         result["advisory_source"] = json!("offline-db");
         result["warnings"] = json!(warnings);
@@ -1005,6 +1043,7 @@ fn vendor(
                 .ok_or_else(|| error("invalid Arch feed"))?;
             for p in packages.iter().filter(|p| p.ecosystem == "Arch Linux") {
                 let aid = crate::store::asset(p)?;
+                let mut assessed = true;
                 for a in advisories {
                     if !array(&a["packages"]).iter().any(|n| n == &p.name)
                         || a["status"] == "Not affected"
@@ -1012,15 +1051,19 @@ fn vendor(
                         continue;
                     }
                     let fixed = string(a, "fixed");
-                    let affected = string(a, "affected");
-                    let version = if !fixed.is_empty() { fixed } else { affected };
-                    if version.is_empty() {
+                    if fixed.is_empty() && string(a, "affected").is_empty() {
+                        assessed = false;
+                        errors.push(json!({"source":"arch","not_assessed":true,"package":format!("{} {}", p.name, p.version),"error":format!("Arch advisory {} names no affected or fixed version", string(a, "name"))}));
                         continue;
                     }
-                    let compared = super::inventory::run(&["vercmp", &p.version, version], 5)?
-                        .parse::<i32>()
-                        .map_err(error)?;
-                    if compared < 0 || fixed.is_empty() && compared == 0 {
+                    // With no fix released, every build is still affected, including ones
+                    // newer than the build the advisory lists.
+                    if fixed.is_empty()
+                        || super::inventory::run(&["vercmp", &p.version, fixed], 5)?
+                            .parse::<i32>()
+                            .map_err(error)?
+                            < 0
+                    {
                         let mut aliases: Vec<_> = array(&a["issues"]).to_vec();
                         aliases.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
                         let cid = aliases
@@ -1030,7 +1073,7 @@ fn vendor(
                         findings.push(json!({"key":crate::store::identity(&json!([aid,cid]))?,"asset":aid,"title":format!("{} {}: {cid}",p.name,p.version),"package":p,"advisory":cid,"aliases":aliases,"kev":if have_kev{json!(aliases.iter().filter_map(Value::as_str).any(|a|kev.contains(a)))}else{Value::Null},"fixed":if fixed.is_empty(){vec![]}else{vec![fixed]},"source_url":ARCH,"fetched_at":sources.iter().find(|s|s["source_url"]==ARCH).map(|s|s["fetched_at"].clone())}));
                     }
                 }
-                if have_kev {
+                if have_kev && assessed {
                     covered.insert(aid);
                 }
             }

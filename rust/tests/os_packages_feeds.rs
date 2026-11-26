@@ -350,3 +350,59 @@ fn ubuntu_os_package_scans_are_labelled_experimental() {
         "{help}"
     );
 }
+
+/// The Arch security tracker: one advisory with no fix yet, listed against an older build,
+/// and one that names no version at all.
+struct Arch;
+impl FeedSource for Arch {
+    fn get(&mut self, url: &str, _: Option<&Value>) -> Result<Value> {
+        let data = if url == KEV {
+            json!({"vulnerabilities":[]})
+        } else if url.starts_with(feeds::EPSS) {
+            json!({"data":[]})
+        } else if url == feeds::ARCH {
+            json!([
+                {"name":"AVG-1","packages":["openssl"],"status":"Vulnerable","affected":"3.0.0-1","fixed":null,"issues":["CVE-2099-1000"]},
+                {"name":"AVG-2","packages":["zlib"],"status":"Vulnerable","affected":"","fixed":null,"issues":["CVE-2099-2000"]},
+            ])
+        } else {
+            panic!("unexpected request {url}");
+        };
+        Ok(json!({"data":data,"source_url":url,"fetched_at":"2026-11-26T00:00:00Z"}))
+    }
+}
+
+#[test]
+fn an_unfixed_arch_advisory_applies_to_newer_builds_and_one_without_versions_is_not_assessed() {
+    let package = |name: &str, version: &str| -> Package {
+        serde_json::from_value(json!({"name":name,"version":version,"ecosystem":"Arch Linux","path":"pacman","scope":"os-package"})).unwrap()
+    };
+    let (openssl, zlib) = (package("openssl", "3.0.2-1"), package("zlib", "1.3-1"));
+    let result = Value::Object(feeds::scan(&[openssl.clone(), zlib.clone()], &mut Arch).unwrap());
+    let findings: Vec<_> = result["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| (f["package"]["name"].clone(), f["advisory"].clone()))
+        .collect();
+    assert_eq!(
+        findings,
+        vec![(json!("openssl"), json!("CVE-2099-1000"))],
+        "{result:#}"
+    );
+    // Covered means checked: only openssl was, so a saved zlib finding cannot be closed.
+    assert_eq!(
+        result["covered"],
+        json!([vorda::store::asset(&openssl).unwrap()]),
+        "{result:#}"
+    );
+    let arch: Vec<_> = result["not_assessed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|n| n["source"] == "arch")
+        .collect();
+    assert_eq!(arch.len(), 1, "{result:#}");
+    assert_eq!(arch[0]["packages"], json!(["zlib 1.3-1"]), "{result:#}");
+    assert_eq!(result["errors"], json!([]), "{result:#}");
+}

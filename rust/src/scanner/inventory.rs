@@ -102,7 +102,7 @@ const TEST_DATA: &[&str] = &[
 pub const NOT_COVERED_TEST_DATA: &str = "this file is in a test or example folder, so it is listed as not covered instead of making the scan unknown";
 
 /// The file sits in a test or example folder below the scan root (never the root itself).
-fn test_data(path: &Path, root: &Path) -> bool {
+pub(crate) fn test_data(path: &Path, root: &Path) -> bool {
     path.strip_prefix(root)
         .ok()
         .and_then(Path::parent)

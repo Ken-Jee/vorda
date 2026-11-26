@@ -1,6 +1,6 @@
 # Install Vorda
 
-Vorda runs as a native Rust executable without Python. Release v0.2.0 ships signed static Linux executables (x86_64 and arm64, musl with OpenSSL compiled in) with SHA-256 checksums and minisign signatures (key ID `57E5204A70E3811B`) on [GitHub Releases](https://github.com/Ken-Jee/vorda/releases). macOS and Windows have no release builds yet; build from source for now. See the [support matrix](support-matrix.md) for platform checks and limits.
+Vorda runs as a native Rust executable without Python. Release v0.2.1 ships signed static Linux executables (x86_64 and arm64, musl with OpenSSL compiled in) with SHA-256 checksums and minisign signatures (key ID `57E5204A70E3811B`) on [GitHub Releases](https://github.com/Ken-Jee/vorda/releases). macOS and Windows have no release builds yet; build from source for now. See the [support matrix](support-matrix.md) for platform checks and limits.
 
 ## Install a release
 
@@ -12,14 +12,14 @@ curl -fsSL https://github.com/Ken-Jee/vorda/releases/latest/download/install.sh 
 
 The script downloads `SHA256SUMS` and the executable for your Linux CPU from the release, checks the SHA-256 checksum, and installs it to `~/.local/bin/vorda`. If `minisign` is on `PATH`, it also requires and verifies `SHA256SUMS.minisig` and the executable's `.minisig` with the embedded Vorda release public key (key ID `57E5204A70E3811B`) before installing; if either signature file cannot be downloaded or fails verification, it installs nothing and exits with status 1. Without `minisign`, it checks the SHA-256 checksum only. When the release includes an executable `.minisig`, the script saves it beside the installed binary as `vorda.minisig` so `vorda verify-self` reports `verified` right after install. On any other system, or if the checksum does not match, it stops with a message and installs nothing. If the install folder is not on `PATH`, the script adds one `export PATH=...` line to your shell profile (`~/.zshrc` for zsh, `~/.bashrc` for bash, or `~/.profile` otherwise), only once, and tells you to open a new terminal window; for fish, it edits nothing and prints the `fish_add_path` command instead. It ends by printing `Next: run vorda setup ...` and does not run setup itself. Set `VORDA_NO_MODIFY_PATH=1` to skip editing your profile and print the line instead. Set `VORDA_INSTALL_DIR` to pick another folder, or `VORDA_VERSION=0.2.0` to pin a release instead of the latest (releases `v0.1.0` and `v0.1.1` have no `.minisig` files, so pinning them fails when `minisign` is on `PATH`; they can still be installed on a machine without `minisign`, or downloaded by hand). Set `VORDA_INSTALL_FROM=DIR` (such as `VORDA_INSTALL_FROM=./downloads sh install.sh`) to install from a local folder holding `SHA256SUMS` and the release executables without `curl` or `wget`; it still checks the checksum, and when `minisign` is on `PATH` the folder must also hold `SHA256SUMS.minisig` and the executable's `.minisig`, so you can test before a release is online or install without internet.
 
-To inspect everything before running it, download the executable (`vorda-0.2.0-x86_64-unknown-linux-musl` or `vorda-0.2.0-aarch64-unknown-linux-musl`), its `.minisig` file, `SHA256SUMS`, and `SHA256SUMS.minisig` from `https://github.com/Ken-Jee/vorda/releases`, then run:
+To inspect everything before running it, download the executable (`vorda-0.2.1-x86_64-unknown-linux-musl` or `vorda-0.2.1-aarch64-unknown-linux-musl`), its `.minisig` file, `SHA256SUMS`, and `SHA256SUMS.minisig` from `https://github.com/Ken-Jee/vorda/releases`, then run:
 
 ```sh
 minisign -Vm SHA256SUMS -P RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG
-minisign -Vm vorda-0.2.0-x86_64-unknown-linux-musl -P RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG
+minisign -Vm vorda-0.2.1-x86_64-unknown-linux-musl -P RWQbgeNwSiDlVx1es199wQE3gUxSQV2A91DIV+24xn3O8WTVFxZUh0qG
 sha256sum --check --ignore-missing SHA256SUMS
-install -D -m 755 vorda-0.2.0-x86_64-unknown-linux-musl ~/.local/bin/vorda
-cp vorda-0.2.0-x86_64-unknown-linux-musl.minisig ~/.local/bin/vorda.minisig
+install -D -m 755 vorda-0.2.1-x86_64-unknown-linux-musl ~/.local/bin/vorda
+cp vorda-0.2.1-x86_64-unknown-linux-musl.minisig ~/.local/bin/vorda.minisig
 ```
 
 Use the `aarch64` filename on arm64. The static Linux executables need no system libraries and no Python, and placing `vorda.minisig` beside the executable lets `vorda verify-self` report `verified`.

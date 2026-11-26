@@ -146,6 +146,14 @@ pub(super) fn scan_problem(h: &Value, now: f64) -> String {
         "failed" => "Scan failed".into(),
         "never" => "Never scanned".into(),
         "stale" => format!("Last scan {}", ago(number(&h["last"], "finished"), now)),
+        "partial" => {
+            let (n, sources) = super::data::not_assessed(&h["last"]);
+            match n {
+                0 => format!("Not assessed: {}", sources.join(", ")),
+                1 => format!("1 package not assessed: {}", sources.join(", ")),
+                n => format!("{n} packages not assessed: {}", sources.join(", ")),
+            }
+        }
         _ => String::new(),
     }
 }

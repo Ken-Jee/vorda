@@ -45,6 +45,9 @@ pub struct Bom {
     model_deadline: Instant,
     #[serde(skip)]
     plugin_sources: BTreeMap<String, String>,
+    /// Stands in for `/` when set, so tests never read machine-wide installs.
+    #[serde(skip)]
+    system: Option<PathBuf>,
 }
 impl Bom {
     fn new(home: PathBuf, host: &str, roots: &[PathBuf], include_home: bool) -> Result<Self> {
@@ -76,6 +79,7 @@ impl Bom {
             text_deadline: Instant::now() + Duration::from_secs(90),
             model_deadline: Instant::now() + Duration::from_secs(60),
             plugin_sources: BTreeMap::new(),
+            system: None,
         })
     }
     #[allow(clippy::too_many_arguments)] // argument list mirrors the report fields; a params struct would only move them
@@ -352,7 +356,8 @@ impl Bom {
         let mut pkg = discover::launcher(string(&s, "command"), &args);
         let mut installs = vec![];
         if pkg["ecosystem"] == "npm" && !self.scoped {
-            installs = discover::npm_installs(&self.home, string(&pkg, "name"))?;
+            installs =
+                discover::npm_installs(&self.home, self.system.as_deref(), string(&pkg, "name"))?;
         } else if pkg["ecosystem"] == "PyPI" && !self.scoped {
             installs = discover::pypi_installs(&self.home, string(&pkg, "name"))?;
         } else if !string(&pkg, "local").is_empty() {
@@ -846,14 +851,26 @@ pub fn collect(
     models: bool,
     include_home: bool,
 ) -> Result<Bom> {
-    collect_inner(home, roots, host, models, include_home, false)
+    collect_inner(home, roots, host, models, include_home, false, None)
+}
+
+/// `collect` with machine-wide paths (`/usr/lib/node_modules`, `/etc/...`) rebased onto `system`.
+#[cfg(test)]
+pub fn collect_under(
+    system: &Path,
+    home: &Path,
+    roots: &[PathBuf],
+    host: &str,
+    models: bool,
+) -> Result<Bom> {
+    collect_inner(home, roots, host, models, true, false, Some(system))
 }
 
 pub fn collect_scoped(home: &Path, roots: &[PathBuf], host: &str) -> Result<Bom> {
     if roots.is_empty() {
         return Err(error("configured roots are required"));
     }
-    collect_inner(home, roots, host, false, false, true)
+    collect_inner(home, roots, host, false, false, true, None)
 }
 
 fn collect_inner(
@@ -863,6 +880,7 @@ fn collect_inner(
     models: bool,
     include_home: bool,
     scoped: bool,
+    system: Option<&Path>,
 ) -> Result<Bom> {
     let home = input::absolute(home)?;
     input::refuse_links(&home)?;
@@ -881,6 +899,7 @@ fn collect_inner(
     let include_home = include_home || roots.is_empty();
     let mut bom = Bom::new(home.clone(), host, &roots, include_home)?;
     bom.scoped = scoped;
+    bom.system = system.map(Path::to_path_buf);
     if include_home && !home.is_dir() {
         bom.incomplete = true;
         bom.failed("home", &home, "Selected home is missing or not a directory");
@@ -960,7 +979,7 @@ fn collect_inner(
             .iter()
             .chain(array(&catalog["system"]))
         {
-            let path = home.join(t[1].as_str().unwrap());
+            let path = discover::locate(&home, bom.system.as_deref(), t[1].as_str().unwrap());
             if let Err(e) = bom.config(
                 t[0].as_str().unwrap(),
                 &path,
@@ -1201,7 +1220,7 @@ impl Bom {
                 self.failed("plugin", &root, e);
             }
         }
-        for root in discover::npm_roots(&home)? {
+        for root in discover::npm_roots(&home, self.system.as_deref())? {
             let mut packages = Vec::new();
             for entry in discover::listing(&root)? {
                 if entry
@@ -1347,10 +1366,14 @@ impl Bom {
     }
     fn home_models(&mut self) -> Result<()> {
         let home = self.home.clone();
+        let machine = |p: &str| match &self.system {
+            Some(system) => system.join(&p[1..]),
+            None => PathBuf::from(p),
+        };
         for base in [
             home.join(".ollama/models/manifests"),
-            PathBuf::from("/usr/share/ollama/.ollama/models/manifests"),
-            PathBuf::from("/var/lib/ollama/.ollama/models/manifests"),
+            machine("/usr/share/ollama/.ollama/models/manifests"),
+            machine("/var/lib/ollama/.ollama/models/manifests"),
         ] {
             if !base.is_dir() {
                 continue;

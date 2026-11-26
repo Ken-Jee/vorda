@@ -8,6 +8,76 @@ use vorda::{
     },
     Result,
 };
+
+#[cfg(target_os = "linux")]
+#[test]
+fn scans_discard_legacy_browser_versions_for_configured_caches() {
+    use std::{fs, os::unix::fs::MetadataExt, process::Command};
+
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let state = temp.path().join("state");
+    let version_cache = state.join("cache/browser-versions");
+    fs::create_dir(&home).unwrap();
+    fs::create_dir_all(&version_cache).unwrap();
+
+    for variable in ["PLAYWRIGHT_BROWSERS_PATH", "PUPPETEER_CACHE_DIR"] {
+        let cache = temp.path().join(variable);
+        let layout = cache.join("chrome-linux64");
+        fs::create_dir_all(&layout).unwrap();
+        let browser = layout.join("chrome");
+        fs::write(&browser, "fixture without version metadata").unwrap();
+        let info = fs::metadata(&browser).unwrap();
+        let modified = info
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        for args in [&["scan"][..], &["check", "--scheduled"][..]] {
+            let legacy = json!({browser.to_str().unwrap(): {
+                "stamp": [info.len(), modified, info.mode(), []],
+                "version": "120.0.6099.12"
+            }});
+            fs::write(version_cache.join("versions.json"), legacy.to_string()).unwrap();
+            let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
+                .arg("--state")
+                .arg(&state)
+                .args(args)
+                .args(["--offline", "--json"])
+                .current_dir(&home)
+                .env("HOME", &home)
+                .env("XDG_CACHE_HOME", home.join(".cache"))
+                .env_remove("PLAYWRIGHT_BROWSERS_PATH")
+                .env_remove("PUPPETEER_CACHE_DIR")
+                .env(variable, &cache)
+                .output()
+                .unwrap();
+            let scan: Value = serde_json::from_slice(&output.stdout)
+                .unwrap_or_else(|err| panic!("{err}: {}", String::from_utf8_lossy(&output.stderr)));
+            let package = scan["packages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|package| package["path"] == json!(browser))
+                .expect("configured cache build should be listed");
+            assert_eq!(package["version"], "unknown", "{args:?} via {variable}");
+            assert!(scan["not_assessed"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| {
+                    entry["reason"] == "no trusted version evidence"
+                        && entry["packages"]
+                            .as_array()
+                            .unwrap()
+                            .contains(&json!(browser))
+                }));
+        }
+    }
+}
+
 struct Feed(u8);
 impl FeedSource for Feed {
     fn nvd_pause(&self) -> std::time::Duration {

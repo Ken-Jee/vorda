@@ -8,6 +8,65 @@ fn quote(s: &str) -> String {
 fn join(args: &[String]) -> String {
     args.iter().map(|s| quote(s)).collect::<Vec<_>>().join(" ")
 }
+
+fn systemctl(args: &[&str], checked: bool) -> Result<String> {
+    let mut command = strings(&["/usr/bin/env"]);
+    #[cfg(target_os = "linux")]
+    {
+        let expected = format!("/run/user/{}", unsafe { libc::geteuid() });
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").ok();
+        let bus_address = std::env::var("DBUS_SESSION_BUS_ADDRESS").ok();
+        command.extend(
+            user_bus_environment(
+                Path::new(&expected),
+                runtime_dir.as_deref(),
+                bus_address.as_deref(),
+            )
+            .into_iter()
+            .flatten(),
+        );
+    }
+    command.extend(strings(&["/usr/bin/systemctl", "--user"]));
+    command.extend(strings(args));
+    execute(&command, None, None, checked)
+}
+
+#[cfg(target_os = "linux")]
+fn user_bus_environment(
+    expected: &Path,
+    runtime_dir: Option<&str>,
+    bus_address: Option<&str>,
+) -> Option<[String; 2]> {
+    use std::{ffi::OsStr, path::Component};
+
+    let runtime_dir = runtime_dir?;
+    let bus_address = bus_address?;
+    if expected.as_os_str() != OsStr::new(runtime_dir) {
+        return None;
+    }
+    let path = bus_address.strip_prefix("unix:path=")?;
+    if path.contains(['%', ',', ';', '\0']) {
+        return None;
+    }
+    let path = Path::new(path);
+    let relative = path.strip_prefix(expected).ok()?;
+    if relative.as_os_str().is_empty()
+        || relative
+            .components()
+            .any(|component| component == Component::ParentDir)
+    {
+        return None;
+    }
+    let target = path.canonicalize().ok()?;
+    if target == expected || !target.starts_with(expected) {
+        return None;
+    }
+    Some([
+        format!("XDG_RUNTIME_DIR={runtime_dir}"),
+        format!("DBUS_SESSION_BUS_ADDRESS={bus_address}"),
+    ])
+}
+
 pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value> {
     let marker = state.join("watch.json");
     let previous = if marker.exists() {
@@ -39,18 +98,8 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
             "systemd" => {
                 let mut units = json!({});
                 for name in ["vorda-hourly", "vorda-daily"] {
-                    units[name] = json!(execute(
-                        &strings(&[
-                            "systemctl",
-                            "--user",
-                            "is-enabled",
-                            &format!("{name}.timer")
-                        ]),
-                        None,
-                        None,
-                        false
-                    )?
-                    .trim());
+                    units[name] =
+                        json!(systemctl(&["is-enabled", &format!("{name}.timer")], false)?.trim());
                 }
                 Ok(
                     json!({"installed":units.as_object().unwrap().values().all(|v|v=="enabled"),"backend":backend,"units":units}),
@@ -91,6 +140,10 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
     } else {
         crate::scanner::osvdb::configured_scan(state)?
     };
+    let refresh_db = install
+        && offline_db
+        && matches!(backend, "systemd" | "cron")
+        && !args.flag("no-db-refresh");
     let mut roots: Vec<String> = args.options("root").into_iter().map(String::from).collect();
     if args.flag("machine") && !roots.is_empty() {
         return Err(Error::usage("--machine and --root cannot be combined"));
@@ -148,6 +201,13 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
         std::env::current_exe()?.to_string_lossy().into_owned(),
         "--state".into(),
         state.to_string_lossy().into_owned(),
+    ];
+    let update = refresh_db.then(|| {
+        let mut update = argv.clone();
+        update.extend(strings(&["db", "update"]));
+        update
+    });
+    argv.extend([
         "check".into(),
         "--scheduled".into(),
         if offline_db {
@@ -156,7 +216,7 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
             "--online"
         }
         .into(),
-    ];
+    ]);
     for flag in ["os-packages", "tools", "browsers"] {
         if config[flag.replace('-', "_")].as_bool().unwrap_or(false) {
             argv.push(format!("--{flag}"));
@@ -165,7 +225,6 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
     for root in &roots {
         argv.extend(strings(&["--root", root]));
     }
-    let command = join(&argv);
     let mut paths = Vec::new();
     match backend {
         "systemd" => {
@@ -184,27 +243,17 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
                     return Err(Error::new("existing timer belongs to another mailbox"));
                 }
                 if install {
-                    atomic(&service, &systemd_service(&argv, &cwd, &search))?;
-                    atomic(&timer,&format!("[Unit]\nDescription=Vulnerability mailbox\n[Timer]\nOnCalendar={cadence}\nPersistent=true\n[Install]\nWantedBy=timers.target\n"))?;
+                    let update = update.as_deref().filter(|_| name == "vorda-daily");
+                    atomic(&service, &systemd_service(&argv, &cwd, &search, update))?;
+                    let delay = if update.is_some() {
+                        "RandomizedDelaySec=30m\n"
+                    } else {
+                        ""
+                    };
+                    atomic(&timer,&format!("[Unit]\nDescription=Vulnerability mailbox\n[Timer]\nOnCalendar={cadence}\n{delay}Persistent=true\n[Install]\nWantedBy=timers.target\n"))?;
                 } else {
-                    execute(
-                        &strings(&[
-                            "systemctl",
-                            "--user",
-                            "disable",
-                            "--now",
-                            &format!("{name}.timer"),
-                        ]),
-                        None,
-                        None,
-                        false,
-                    )?;
-                    execute(
-                        &strings(&["systemctl", "--user", "stop", &format!("{name}.service")]),
-                        None,
-                        None,
-                        false,
-                    )?;
+                    systemctl(&["disable", "--now", &format!("{name}.timer")], false)?;
+                    systemctl(&["stop", &format!("{name}.service")], false)?;
                     for p in [&service, &timer] {
                         if p.exists() {
                             fs::remove_file(p)?;
@@ -212,18 +261,11 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
                     }
                 }
             }
-            run(&strings(&["systemctl", "--user", "daemon-reload"]), None)?;
+            systemctl(&["daemon-reload"], true)?;
             if install {
-                run(
-                    &strings(&[
-                        "systemctl",
-                        "--user",
-                        "enable",
-                        "--now",
-                        "vorda-hourly.timer",
-                        "vorda-daily.timer",
-                    ]),
-                    None,
+                systemctl(
+                    &["enable", "--now", "vorda-hourly.timer", "vorda-daily.timer"],
+                    true,
                 )?;
             }
         }
@@ -245,12 +287,7 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
                 .map(String::from)
                 .collect();
             if install {
-                let invocation = format!("env {} {command}", quote(&format!("PATH={search}")))
-                    .replace('%', "\\%");
-                lines.extend([
-                    format!("0 * * * * {invocation} # vorda"),
-                    format!("15 3 * * * {invocation} # vorda"),
-                ]);
+                lines.extend(cron_entries(&argv, &search, update.as_deref()));
             }
             execute(
                 &strings(&["crontab", "-"]),
@@ -322,9 +359,16 @@ pub fn watch(state: &Path, args: &super::super::surfaces::Args) -> Result<Value>
             }
         }
     }
+    let warnings = if !install || !offline_db {
+        vec![]
+    } else if refresh_db {
+        vec!["The daily schedule refreshes the local advisory database before scanning. It downloads public advisory data without sending package names. If the refresh fails, the scan still runs."]
+    } else {
+        vec!["Run `vorda db update` daily to refresh the local advisory database. A missing or stale database records unknown health with no network fallback."]
+    };
     let result = json!({"installed":install,"backend":backend,"files":paths,"roots":roots,"machine":roots.is_empty(),
         "advisories":if offline_db { "offline-db" } else { "online" },
-        "warnings":if install && offline_db { vec!["Scheduled offline-db scans never refresh the local advisory database automatically; run `vorda db update` daily before scheduled scans. Databases that are missing or older than 72 hours (adjustable via VORDA_ADVISORY_DB_MAX_AGE_HOURS) record unknown health messages and never fall back to the network. Reinstall with `--online` to explicitly send package names and versions to OSV.dev instead."] } else { vec![] }});
+        "db_refresh":refresh_db,"warnings":warnings});
     atomic(&marker, &result.to_string())?;
     Ok(result)
 }
@@ -356,19 +400,86 @@ fn windows_join(args: &[String]) -> String {
         .join(" ")
 }
 
-fn systemd_service(argv: &[String], cwd: &Path, search: &str) -> String {
-    let args = argv
-        .iter()
+fn cron_entries(argv: &[String], search: &str, update: Option<&[String]>) -> [String; 2] {
+    let environment = quote(&format!("PATH={search}"));
+    let command = format!("env {environment} {}", join(argv));
+    let (minute, daily) = match update {
+        Some(update) => (
+            15 + uuid::Uuid::new_v4().as_bytes()[0] % 30,
+            format!("env {environment} {} || :; {command}", join(update)),
+        ),
+        None => (15, command.clone()),
+    };
+    [
+        format!("0 * * * * {} # vorda", command.replace('%', "\\%")),
+        format!("{minute} 3 * * * {} # vorda", daily.replace('%', "\\%")),
+    ]
+}
+
+fn systemd_command(argv: &[String]) -> String {
+    argv.iter()
         .map(|s| json!(s).to_string().replace('%', "%%").replace('$', "$$"))
         .collect::<Vec<_>>()
-        .join(" ");
-    format!("[Unit]\nDescription=Vulnerability mailbox\n[Service]\nType=oneshot\nEnvironment={}\nWorkingDirectory={}\nExecStart={args}\nSuccessExitStatus=3\n",
+        .join(" ")
+}
+
+fn systemd_service(argv: &[String], cwd: &Path, search: &str, update: Option<&[String]>) -> String {
+    let args = systemd_command(argv);
+    let pre = update
+        .map(|argv| format!("ExecStartPre=-{}\n", systemd_command(argv)))
+        .unwrap_or_default();
+    format!("[Unit]\nDescription=Vulnerability mailbox\n[Service]\nType=oneshot\nEnvironment={}\nWorkingDirectory={}\n{pre}ExecStart={args}\nSuccessExitStatus=3\n",
         json!(format!("PATH={search}")).to_string().replace('%', "%%"),
         cwd.to_string_lossy().replace('%', "%%"))
 }
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
+    #[test]
+    fn systemctl_forwards_only_a_bus_inside_the_current_users_runtime_directory() {
+        use std::{fs, os::unix::fs::symlink};
+
+        let temp = tempfile::tempdir().unwrap();
+        let expected = temp.path().canonicalize().unwrap().join("1001");
+        fs::create_dir(&expected).unwrap();
+        let other = expected.with_file_name("10010");
+        fs::create_dir(&other).unwrap();
+        let bus = expected.join("bus");
+        let other_bus = other.join("bus");
+        let _local = std::os::unix::net::UnixListener::bind(&bus).unwrap();
+        let _other = std::os::unix::net::UnixListener::bind(&other_bus).unwrap();
+        let linked_bus = expected.join("linked-bus");
+        symlink(&other_bus, &linked_bus).unwrap();
+
+        let runtime = expected.to_str().unwrap();
+        let address = format!("unix:path={}", bus.display());
+        let environment = |dir, bus| super::user_bus_environment(&expected, dir, bus);
+        assert_eq!(
+            environment(Some(runtime), Some(&address)),
+            Some([
+                format!("XDG_RUNTIME_DIR={runtime}"),
+                format!("DBUS_SESSION_BUS_ADDRESS={address}"),
+            ]),
+        );
+        assert!(environment(other.to_str(), Some(&address)).is_none());
+        assert!(environment(None, Some(&address)).is_none());
+        assert!(environment(Some(runtime), None).is_none());
+        for refused in [
+            format!("unix:path={}", other_bus.display()),
+            format!("unix:path={runtime}/../10010/bus"),
+            format!("unix:path={}", linked_bus.display()),
+            format!("{address},guid=fixture"),
+            format!("{address};unix:path={}", other_bus.display()),
+            format!("unix:path={runtime}/%62us"),
+            "unix:abstract=fixture".into(),
+        ] {
+            assert!(
+                super::user_bus_environment(&expected, Some(runtime), Some(&refused)).is_none(),
+                "{refused}"
+            );
+        }
+    }
+
     #[test]
     fn generated_service_is_accepted_by_systemd() {
         let verifier = std::path::Path::new("/usr/bin/systemd-analyze");
@@ -380,11 +491,14 @@ mod tests {
         let cwd = temp.path().join("project with spaces and %");
         std::fs::create_dir(&cwd).unwrap();
         let unit = temp.path().join("vorda-test.service");
-        std::fs::write(
-            &unit,
-            super::systemd_service(&["/bin/true".into()], &cwd, "/usr/bin:/bin"),
-        )
-        .unwrap();
+        let service = super::systemd_service(
+            &["/bin/true".into()],
+            &cwd,
+            "/usr/bin:/bin",
+            Some(&["/bin/false".into()]),
+        );
+        assert!(service.contains("ExecStartPre=-\"/bin/false\"\nExecStart=\"/bin/true\"\n"));
+        std::fs::write(&unit, service).unwrap();
         let output = std::process::Command::new(verifier)
             .arg("verify")
             .arg(&unit)
@@ -395,6 +509,28 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    #[test]
+    fn cron_runs_the_daily_check_even_if_refresh_fails() {
+        let scan = super::strings(&["/bin/echo", "scan"]);
+        let update = super::strings(&["/bin/sh", "-c", "echo update; exit 1"]);
+        let run = |entry: &str| {
+            let command = entry.splitn(6, ' ').nth(5).unwrap();
+            let output = std::process::Command::new("/bin/sh")
+                .args(["-ec", command])
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            String::from_utf8(output.stdout).unwrap()
+        };
+        let [hourly, daily] = super::cron_entries(&scan, "/usr/bin:/bin", Some(&update));
+        let minute: u8 = daily.split_whitespace().next().unwrap().parse().unwrap();
+        assert!((15..45).contains(&minute));
+        assert_eq!(run(&hourly), "scan\n");
+        assert_eq!(run(&daily), "update\nscan\n");
+        let [_, daily] = super::cron_entries(&scan, "/usr/bin:/bin", None);
+        assert_eq!(run(&daily), "scan\n");
     }
 }
 

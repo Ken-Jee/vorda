@@ -9,6 +9,70 @@ use vorda::{
         mcp,
     },
 };
+
+#[test]
+fn fix_skips_deferred_advisory_fetches_offline_or_for_an_unapproved_source() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let store = Store::open(&state).unwrap();
+    for (mode, url, note) in [
+        (
+            "offline-db",
+            "https://api.osv.dev/v1/vulns/GHSA-fixture-0001",
+            "Advisory detail was not fetched in offline mode",
+        ),
+        (
+            "online",
+            "https://example.invalid/advisory",
+            "Advisory detail source is not allowed",
+        ),
+    ] {
+        fs::write(
+            state.join("config.json"),
+            json!({"advisories":mode}).to_string(),
+        )
+        .unwrap();
+        let finding = json!({
+            "asset":"example",
+            "package":{"ecosystem":"npm","name":"example","version":"1.2.3","path":"project/package-lock.json"},
+            "detail_status":"deferred",
+            "source_url":[url],
+            "fixed":[]
+        });
+        store
+            .db
+            .execute(
+                "INSERT OR REPLACE INTO findings VALUES('example',?1,1)",
+                [finding.to_string()],
+            )
+            .unwrap();
+
+        let proxy = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        proxy.set_nonblocking(true).unwrap();
+        let proxy_url = format!("http://{}", proxy.local_addr().unwrap());
+        let output = Command::new(env!("CARGO_BIN_EXE_vorda"))
+            .arg("--state")
+            .arg(&state)
+            .args(["fix", "--dry-run"])
+            .env_remove("VORDA_ADVISORIES")
+            .env("HTTPS_PROXY", &proxy_url)
+            .env("https_proxy", &proxy_url)
+            .env("NO_PROXY", "")
+            .env("no_proxy", "")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let connection = proxy.accept();
+        assert!(
+            matches!(connection, Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "fix advice connected to the proxy in {mode} mode"
+        );
+        let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(result[0]["fixed"], json!([]));
+        assert_eq!(result[0]["detail_note"], note);
+    }
+}
+
 fn git(root: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
         .args(args)
@@ -401,13 +465,7 @@ fn manifest_fixture(
     (root, state, store, repairs, original.to_string())
 }
 
-#[test]
-fn manifest_repair_clones_draft_into_state_path_with_spaces() {
-    let temp = tempfile::tempdir().unwrap();
-    let (root, state, store, mut repairs, original) = manifest_fixture(
-        temp.path(),
-        json!([std::env::current_exe().unwrap(), "--list"]),
-    );
+fn draft_example_repair(repairs: &mut Repairs, root: &Path) {
     repairs
         .dispatch("claim", &json!({"item":"example","agent":"test"}))
         .unwrap();
@@ -423,6 +481,16 @@ fn manifest_repair_clones_draft_into_state_path_with_spaces() {
         )
         .unwrap();
     repairs.draft("example", "test").unwrap();
+}
+
+#[test]
+fn manifest_repair_clones_draft_into_state_path_with_spaces() {
+    let temp = tempfile::tempdir().unwrap();
+    let (root, state, store, mut repairs, original) = manifest_fixture(
+        temp.path(),
+        json!([std::env::current_exe().unwrap(), "--list"]),
+    );
+    draft_example_repair(&mut repairs, &root);
     let prior_other = store
         .active()
         .unwrap()
@@ -441,6 +509,88 @@ fn manifest_repair_clones_draft_into_state_path_with_spaces() {
         fs::read_to_string(state.join("last-scan.json")).unwrap(),
         "previous complete scan"
     );
+}
+
+#[test]
+fn repair_uses_the_saved_offline_database_to_verify_a_fix() {
+    use std::io::Write;
+    use std::net::TcpListener;
+
+    for local_index in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let (root, state, _store, mut repairs, _) = manifest_fixture(
+            temp.path(),
+            json!([std::env::current_exe().unwrap(), "--list"]),
+        );
+        fs::write(state.join("config.json"), r#"{"advisories":"offline-db"}"#).unwrap();
+        let db = temp.path().join("advisories");
+        let proxy = TcpListener::bind("127.0.0.1:0").unwrap();
+        proxy.set_nonblocking(true).unwrap();
+        let proxy_url = format!("http://{}", proxy.local_addr().unwrap());
+        let vorda = || {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_vorda"));
+            command
+                .arg("--state")
+                .arg(&state)
+                .env_remove("VORDA_ADVISORIES")
+                .env("VORDA_ADVISORY_DB_DIR", &db)
+                .env("VORDA_ADVISORY_DB_MIN_ENTRIES", "1")
+                .env("HTTPS_PROXY", &proxy_url)
+                .env("https_proxy", &proxy_url)
+                .env("NO_PROXY", "")
+                .env("no_proxy", "");
+            command
+        };
+        if local_index {
+            let mirror = temp.path().join("mirror");
+            fs::create_dir_all(mirror.join("npm")).unwrap();
+            fs::write(mirror.join("kev.json"), r#"{"vulnerabilities":[]}"#).unwrap();
+            let mut zip =
+                zip::ZipWriter::new(fs::File::create(mirror.join("npm/all.zip")).unwrap());
+            zip.start_file(
+                "ADVISORY-example.json",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+            write!(
+                zip,
+                "{}",
+                json!({"id":"ADVISORY-example","modified":"2099-01-01T00:00:00Z",
+                "affected":[{"package":{"ecosystem":"npm","name":"example"},
+                "ranges":[{"type":"SEMVER","events":[{"introduced":"0"},{"fixed":"1.2.4"}]}]}]})
+            )
+            .unwrap();
+            zip.finish().unwrap();
+            let update = vorda()
+                .args(["db", "update", "--ecosystem", "npm", "--from"])
+                .arg(&mirror)
+                .output()
+                .unwrap();
+            assert!(update.status.success(), "{update:?}");
+        }
+
+        draft_example_repair(&mut repairs, &root);
+        let output = vorda()
+            .args(["repair", "--config"])
+            .arg(temp.path().join("fix.json"))
+            .args(["apply", "--apply", "--item", "example", "--agent", "test"])
+            .output()
+            .unwrap();
+        assert!(matches!(proxy.accept(), Err(e) if e.kind() == std::io::ErrorKind::WouldBlock));
+        if local_index {
+            assert!(output.status.success(), "{output:?}");
+            let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(result["status"], "verified");
+            assert_eq!(result["proof"]["scan"]["advisory_source"], "offline-db");
+        } else {
+            assert_eq!(output.status.code(), Some(2), "{output:?}");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("unverified"),
+                "{output:?}"
+            );
+            assert_eq!(git(&root, &["branch", "--show-current"]).trim(), "main");
+        }
+    }
 }
 
 #[test]

@@ -713,13 +713,21 @@ pub fn nearest_manifest_bounded(
     }
     Ok(None)
 }
-pub fn npm_roots(home: &Path) -> Result<Vec<PathBuf>> {
+/// Resolves a catalog path: relative entries sit under `home`, and absolute
+/// ones are machine-wide unless `system` rebases them (tests use an empty root).
+pub fn locate(home: &Path, system: Option<&Path>, path: &str) -> PathBuf {
+    match (system, path.strip_prefix('/')) {
+        (Some(system), Some(rel)) => system.join(rel),
+        _ => home.join(path),
+    }
+}
+pub fn npm_roots(home: &Path, system: Option<&Path>) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     for rel in array(&catalog()["npm_roots"])
         .iter()
         .filter_map(Value::as_str)
     {
-        out.push(home.join(rel));
+        out.push(locate(home, system, rel));
     }
     for pattern in array(&catalog()["npm_root_globs"])
         .iter()
@@ -732,8 +740,12 @@ pub fn npm_roots(home: &Path) -> Result<Vec<PathBuf>> {
     }
     Ok(out)
 }
-pub fn npm_installs(home: &Path, name: &str) -> Result<Vec<(PathBuf, String)>> {
-    let mut roots = npm_roots(home)?;
+pub fn npm_installs(
+    home: &Path,
+    system: Option<&Path>,
+    name: &str,
+) -> Result<Vec<(PathBuf, String)>> {
+    let mut roots = npm_roots(home, system)?;
     for cache in array(&catalog()["npx_caches"])
         .iter()
         .filter_map(Value::as_str)

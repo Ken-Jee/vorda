@@ -225,7 +225,7 @@ pub fn inventory_screen(snapshot: &Value, tab: &str) -> String {
                     let side = match s(h, "scan") {
                         "ok" => "Coverage complete".to_string(),
                         "never" => "Coverage unknown".to_string(),
-                        "stale" => scan_problem(h, now),
+                        "stale" | "partial" => scan_problem(h, now),
                         _ => "Coverage partial".to_string(),
                     };
                     let mut desc = format!(
@@ -233,10 +233,7 @@ pub fn inventory_screen(snapshot: &Value, tab: &str) -> String {
                         grouped(packages),
                         if packages == 1 { "" } else { "s" }
                     );
-                    let not_assessed = h["last"]["not_assessed"]
-                        .as_str()
-                        .and_then(|text| serde_json::from_str::<Value>(text).ok())
-                        .map_or(0, |v| v.as_array().map_or(0, Vec::len));
+                    let (not_assessed, _) = super::data::not_assessed(&h["last"]);
                     if not_assessed > 0 {
                         desc.push_str(&format!(" · Not assessed ({not_assessed})"));
                     }

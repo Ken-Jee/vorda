@@ -2,6 +2,29 @@
 
 All notable user-facing changes to Vorda.
 
+## 0.2.1 - 2026-11-26
+
+### Changed
+
+- **Named projects with unchecked packages are unknown (may affect CI):** A scan of a project you name (`vorda scan DIR`, `--root`, or the GitHub Action) now reports `unknown` (exit 2) while any of its lockfile packages outside test or example folders are not assessed, such as a `Gemfile.lock`, NuGet or PHP lockfile under the offline database. The new `not-assessed` error names the sources and, offline, says that `--online` checks them. Findings still win with exit 3. Machine scans and inventory files are unchanged: they list such packages under `not_assessed` and exit 0 when nothing is found. This reverses part of the 0.2.0 not-assessed change.
+- **Strict Action on partial coverage (may affect CI):** The GitHub Action has two new outputs, `coverage` (`complete` or `partial`) and `not-assessed` (a package count). With `fail-on-findings: 'true'`, a scan with no findings where any package was not assessed fails the step (exit 2) with an annotation naming the sources. SARIF is uploaded only when `coverage` is `complete`, so a partial report can no longer close open code scanning alerts for packages it never checked. A vulnerable scan that also left a file unchecked is `partial` too, and still fails with exit 1. If you upload `sarif-file` in your own step, gate it on `coverage == 'complete'`. A scan that finds no dependency file Vorda recognizes is also `partial` in the Action (a lockfile that lists no packages is not): it uploads nothing, so an empty report cannot replace a real analysis, warns in report-only mode and fails (exit 2) in strict mode. The CLI still exits 0 for it.
+- **Offline watches refresh the database (may affect CI):** In offline mode, `vorda watch install` on systemd and cron now makes the daily job run `vorda db update` before its scan (systemd adds a random delay of up to 30 minutes). A failed refresh keeps the old database and the scan still runs. The download sends no package names. Pass `--no-db-refresh` to keep the old behaviour; `vorda watch uninstall` removes the job as before. Existing installs pick this up when reinstalled. Before, an offline schedule went `unknown` for good once its database was 72 hours old.
+- **Summary counts:** The scan summary counts packages checked, not packages found. When something was not assessed it reads "1 of 2 packages checked, 1 not assessed" and names the ecosystems. JSON output adds `ecosystems`, with `found`, `assessed` and `not_assessed` counts for each ecosystem.
+- **Dashboard coverage:** A saved scan with `not_assessed` entries now shows as partial on Overview, the Coverage tab and Inventory, with the package count and sources, such as "1 package not assessed: offline-db:RubyGems". Before, Overview said nothing needed attention and the Coverage tab said "Coverage is complete". Host health for such hosts is at least `warning`.
+
+### Fixed
+
+- **Browser caches are never run:** A scan no longer runs a file it finds in a Puppeteer or Playwright cache to read its version. Those folders can be set by an environment variable, so they could point inside a cloned repository. Versions now come from the cache's metadata only; a build without it is listed under `not_assessed` with "no trusted version evidence". The first scan after upgrading rereads browser versions from disk, and Linux system browsers are looked up through the package manager at fixed system paths with an empty environment.
+- **MCP tools after `vorda setup`:** Setup saves a config with no `roots`, and every MCP inventory, check and agent tool then refused to run. With `roots` unset, MCP now uses the working folder, as on a fresh state. A root outside it is still refused, and `"roots": []` still denies access.
+- **`vorda fix` stays offline:** With offline mode saved, fix advice for a finding with no saved fixed version no longer fetches the advisory page; it says the detail was not fetched in offline mode. Online, it contacts only the OSV advisory API and refuses any other stored address. Fixed versions already saved still work offline.
+- **Repair verification uses the saved advisory source:** `vorda repair` verified every repair online and sent the package name even when offline mode was saved. It now checks against the saved source. When the local database cannot check the repaired package, the repair stays unverified and follows the usual rollback path, never passed.
+- **Scheduler bus address:** `systemctl --user` calls from `vorda watch` now pass on `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` only when they name the current user's local runtime folder and a bus inside it; otherwise both are left unset and systemctl uses its own default.
+- **Arch Linux advisories:** An Arch advisory with no fix released now applies to every installed build, not only the build it lists, so a newer build of a still-vulnerable package is reported. An advisory that names no version is listed under `not_assessed` (source `arch`) and no longer marks the package as checked, so a saved finding for it stays open.
+
+### Docs
+
+- **One exit-code table:** README, `docs/status.md` and `docs/github-action.md` share one table of the six results (clean, finding, finding with gaps, not assessed, error, nothing to scan) with the CLI exit code, the status, the strict Action result and whether SARIF is uploaded. A test checks every row.
+
 ## 0.2.0 - 2026-11-23
 
 ### Changed

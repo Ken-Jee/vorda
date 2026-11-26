@@ -75,11 +75,23 @@ fn run_scan() -> Result<i32> {
     }
     let mut store = Store::open(temporary.path())?;
     let result = Value::Object(crate::cli::check(&options, &mut store)?);
-    let (status, findings) = write_outputs(&sarif_path, &output_path, &result)?;
+    let (status, findings, coverage) = write_outputs(&sarif_path, &output_path, &result)?;
     let fail = env::var("VORDA_FAIL").as_deref() == Ok("true");
     // Findings or named gaps can come with errors; the log lists them either way.
     for error in crate::scanner::array(&result["errors"]) {
         eprintln!("vorda scan error: {error}");
+    }
+    // Name what was not assessed first: a named project with such packages is also unknown.
+    let gaps = crate::scanner::array(&result["not_assessed"]);
+    if !gaps.is_empty() {
+        let sources: Vec<_> = gaps.iter().filter_map(|n| n["source"].as_str()).collect();
+        println!(
+            "::{} title=vorda::Coverage partial{}: {} not assessed ({}). advisories: online checks ecosystems the offline database does not cover.",
+            if fail { "error" } else { "warning" },
+            if fail { ", so this is not a pass" } else { "" },
+            not_assessed(gaps),
+            sources.join(", ")
+        );
     }
     if status == "unknown" {
         if fail {
@@ -88,14 +100,44 @@ fn run_scan() -> Result<i32> {
         }
         println!("::warning title=vorda::Scan incomplete; see the scan errors in this step's log.");
     }
-    Ok(if findings > 0 && fail { 1 } else { 0 })
+    let errors = crate::scanner::array(&result["errors"]);
+    if status == "vulnerable" && !errors.is_empty() {
+        println!("::warning title=vorda::Findings reported, but some files or entries were not checked (see the scan errors in this step's log), so no SARIF is uploaded.");
+    }
+    if nothing_to_scan(&result) {
+        println!(
+            "::{} title=vorda::Nothing to scan: no dependency file Vorda recognizes was found{}, and no SARIF is uploaded.",
+            if fail { "error" } else { "warning" },
+            if fail { ", so this is not a pass" } else { "" },
+        );
+    }
+    Ok(if findings > 0 && fail {
+        1
+    } else if coverage == "partial" && fail {
+        2
+    } else {
+        0
+    })
+}
+
+/// The CLI's "Nothing to scan" case: a clean result with no packages and no file read.
+fn nothing_to_scan(result: &Value) -> bool {
+    result["status"] == "no-known-findings"
+        && crate::scanner::array(&result["packages"]).is_empty()
+        && crate::scanner::array(&result["completed_paths"]).is_empty()
+}
+
+fn not_assessed(gaps: &[Value]) -> usize {
+    gaps.iter()
+        .map(|n| n["packages"].as_array().map_or(0, Vec::len))
+        .sum()
 }
 
 fn write_outputs(
     sarif_path: &OsStr,
     output_path: &OsStr,
     result: &Value,
-) -> Result<(&'static str, usize)> {
+) -> Result<(&'static str, usize, &'static str)> {
     let sarif = crate::scanner::outputs::sarif(result);
     fs::write(sarif_path, serde_json::to_vec_pretty(&sarif)?)?;
     let findings = result["findings"].as_array().map_or(0, Vec::len);
@@ -104,8 +146,26 @@ fn write_outputs(
         Some("no-known-findings") => "no-known-findings",
         _ => "unknown",
     };
+    let gaps = crate::scanner::array(&result["not_assessed"]);
+    // Only a complete scan may upload: its SARIF closes alerts for anything it leaves out (a gap,
+    // or a file a vulnerable scan could not check), and an empty one (nothing to scan) would
+    // replace a real analysis.
+    let errors = crate::scanner::array(&result["errors"]);
+    let coverage = if status != "unknown"
+        && gaps.is_empty()
+        && errors.is_empty()
+        && !nothing_to_scan(result)
+    {
+        "complete"
+    } else {
+        "partial"
+    };
     let mut output = OpenOptions::new().append(true).open(output_path)?;
-    writeln!(output, "status={status}\nfindings={findings}")?;
+    writeln!(
+        output,
+        "status={status}\nfindings={findings}\ncoverage={coverage}\nnot-assessed={}",
+        not_assessed(gaps)
+    )?;
     println!("vorda: {status}, {findings} findings");
-    Ok((status, findings))
+    Ok((status, findings, coverage))
 }

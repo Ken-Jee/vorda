@@ -62,9 +62,9 @@ fn watch_records_advisory_choice_and_warns_before_offline_schedules_age_out() {
         .output()
         .unwrap();
     assert!(help.status.success());
-    assert!(String::from_utf8(help.stdout)
-        .unwrap()
-        .contains("vorda db update"));
+    let help = String::from_utf8(help.stdout).unwrap();
+    assert!(help.contains("vorda db update"));
+    assert!(help.contains("--no-db-refresh"));
 }
 
 #[test]
